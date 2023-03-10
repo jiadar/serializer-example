@@ -15,10 +15,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from inspections.views import InspectionViewSet
-from properties.views import PropertyViewSet
+from propertymanager.views import (InspectionViewSet, PropertyViewSet,
+                                   UserViewSet)
 from rest_framework.routers import DefaultRouter
-from users.views import UserViewSet
 
 router = DefaultRouter()
 

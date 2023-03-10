@@ -14,6 +14,22 @@ Accept: application/json;charset=utf-8
     "zip": 70115
 }
 
+# Create another user.
+POST http://localhost:8000/api/users/
+Content-Type: application/json
+Accept: application/json;charset=utf-8
+
+{
+    "user_id": "1c8be170-f711-64d4-a807-6a7d91c80bc9",
+    "email": "inspector@gadget.org",
+    "phone": "415-264-0616",
+    "dob": "1980-10-15",
+    "address": "1618 Sullivan Ave #385",
+    "city": "Daly City",
+    "state": "CA",
+    "zip": 70115
+}
+
 # Attempt to create a user with bad data
 
 POST http://localhost:8000/api/users/
@@ -42,17 +58,19 @@ Content-Type: application/json
 Accept: application/json;charset=utf-8
 
 {
-    "property_id": "902131c2-8230-49fa-bb37-b12797df0009",
-    "owner_id": "6c8be170-f711-44d4-b807-6a7d91c80bc9",
-    "address": "1618 Sullivan Ave #385",
-    "city": "Daly City",
-    "state": "CA",
-    "zip": 70115,
-    "description": "fabulous",
-    "rent": 1000.50,
+    "property": {
+        "property_id": "902131c2-8230-49fa-bb37-b12797df0009",
+        "owner_id": "6c8be170-f711-44d4-b807-6a7d91c80bc9",
+        "address": "1618 Sullivan Ave #385",
+        "city": "Daly City",
+        "state": "CA",
+        "zip": 70115,
+        "description": "fabulous",
+        "rent": 1000.50
+    },
     "inspection": {
-        "inspection_id": "d8ebe42c-ad03-43d7-bd71-15f0a1cd97e5",
-        "inspector": "6c8be170-f711-44d4-b807-6a7d91c80bc9",
+        "inspection_id": "f8ebe42c-ad03-43d7-bd71-15f0a1cd9735",
+        "inspector":  "1c8be170-f711-64d4-a807-6a7d91c80bc9",
         "inspection_date": "2022-11-09",
         "findings": "none"
     }

@@ -1,3 +1,6 @@
+import pdb
+from importlib import import_module
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.paginator import Paginator
 from django.db import Error as DatabaseError
@@ -38,6 +41,16 @@ class MarshmallowViewSet(viewsets.ViewSet):
             json = self.schemas.create.load(request.data)
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
+
+        if self.schemas.has_dependents:
+            dep_spec = self.schemas.dependents[0]
+            (key, model_class_str, schema_str) = dep_spec
+            # check key in json
+            # try / except here
+            model_class = import_module(model_class_str, package=None)
+            schema = model_class.get_attr(model_class, schema_str)
+            dep_obj = json.get(key)
+            # now try the below with dep_obj, inserting it, and do so recursively
 
         try:
             obj = self.model(**json)
