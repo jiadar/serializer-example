@@ -1,0 +1,63 @@
+# Create a user. Try this again to get a Database Error
+POST http://localhost:8000/api/users/
+Content-Type: application/json
+Accept: application/json;charset=utf-8
+
+{
+    "user_id": "6c8be170-f711-64d4-a807-6a7d91c80bc9",
+    "email": "javin@teamengixney.org",
+    "phone": "415-264-0616",
+    "dob": "1980-10-15",
+    "address": "1618 Sullivan Ave #385",
+    "city": "Daly City",
+    "state": "CA",
+    "zip": 70115
+}
+
+# Attempt to create a user with bad data
+
+POST http://localhost:8000/api/users/
+Content-Type: application/json
+Accept: application/json;charset=utf-8
+
+{
+    "user_id": "6c8be170-f711-44d4-b807-6a7d91c80bc9",
+    "email": "javin@teamengine.org",
+    "phone": "415-264-0616",
+    "dob": "1980-10-15",
+    "address": "1618 Sullivan Ave #385",
+    "city": "Daly City",
+    "state": "CA",
+    "zip": "BAD DATA"
+}
+
+# Get the users
+GET http://localhost:8000/api/users/
+Accept: application/json;charset=utf-8
+
+# Post a property with an inspection
+# (an inspection is required before property is posted)
+POST http://localhost:8000/api/properties/
+Content-Type: application/json
+Accept: application/json;charset=utf-8
+
+{
+    "property_id": "902131c2-8230-49fa-bb37-b12797df0009",
+    "owner_id": "6c8be170-f711-44d4-b807-6a7d91c80bc9",
+    "address": "1618 Sullivan Ave #385",
+    "city": "Daly City",
+    "state": "CA",
+    "zip": 70115,
+    "description": "fabulous",
+    "rent": 1000.50,
+    "inspection": {
+        "inspection_id": "d8ebe42c-ad03-43d7-bd71-15f0a1cd97e5",
+        "inspector": "6c8be170-f711-44d4-b807-6a7d91c80bc9",
+        "inspection_date": "2022-11-09",
+        "findings": "none"
+    }
+}
+
+# Get the properties
+GET http://localhost:8000/api/properties/
+Accept: application/json;charset=utf-8
