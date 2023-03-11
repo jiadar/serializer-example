@@ -42,15 +42,15 @@ class MarshmallowViewSet(viewsets.ViewSet):
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
 
-        if self.schemas.has_dependents:
-            dep_spec = self.schemas.dependents[0]
-            (key, model_class_str, schema_str) = dep_spec
-            # check key in json
-            # try / except here
-            model_class = import_module(model_class_str, package=None)
-            schema = model_class.get_attr(model_class, schema_str)
-            dep_obj = json.get(key)
-            # now try the below with dep_obj, inserting it, and do so recursively
+        objs = []
+        for key, dep in self.schemas.deps.items():
+            model = dep["model"]
+            references = dep["references"]
+            if key in json:
+                dep_json = json.pop(key)
+                dep_json[f"{references}_id"] = json[f"{references}_id"]
+                related_obj = model(**dep_json)
+                objs.append(related_obj)
 
         try:
             obj = self.model(**json)
@@ -60,13 +60,32 @@ class MarshmallowViewSet(viewsets.ViewSet):
         try:
             obj.save()
         except DatabaseError as e:
-            return Response({"message": f"Database error: {e}"})
+            return Response({"message": f"Database error saving primary object: {e}"})
 
+        try:
+            for related_obj in objs:
+                related_obj.save()
+        except DatabaseError as e:
+            return Response({"message": f"Database error saving related objects: {e}"})
+
+        #        for obj in objs:
+        #            obj.delete()
+        #        obj.delete()
         return Response({"message": "accepted"})
 
 
-def schema_factory(default, **kwargs):
-    schemas = {}
-    for schema in ["list", "create", "retrieve", "update", "partial_update", "destroy"]:
-        schemas[schema] = kwargs[schema] if schema in kwargs else default
-    return type("SchemaContainer", (object,), schemas)
+class SchemaContainer:
+    deps = {}
+
+    def __init__(self, default, **kwargs):
+        self.list = kwargs["list"] if "list" in kwargs else default
+        self.create = kwargs["create"] if "create" in kwargs else default
+        self.retrieve = kwargs["retrieve"] if "retrieve" in kwargs else default
+        self.update = kwargs["update"] if "update" in kwargs else default
+        self.partial_update = (
+            kwargs["partial_update"] if "partial_update" in kwargs else default
+        )
+        self.destroy = kwargs["destroy"] if "destroy" in kwargs else default
+
+    def add_dep(self, key, dep):
+        self.deps[key] = dep

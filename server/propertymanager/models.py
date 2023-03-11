@@ -1,5 +1,6 @@
 import uuid
 
+import magic
 from django.db import models
 from marshmallow import Schema, fields
 
@@ -19,17 +20,6 @@ class User(models.Model):
     REQUIRED_FIELDS = ["email"]
     ORDER_BY = "email"
 
-    class schema:
-        class default(Schema):
-            user_id = fields.UUID()
-            email = fields.Email()
-            phone = fields.String()
-            dob = fields.Date()
-            address = fields.String()
-            city = fields.String()
-            state = fields.String()
-            zip = fields.Number()
-
 
 class Inspection(models.Model):
     inspection_id = models.UUIDField(
@@ -40,25 +30,6 @@ class Inspection(models.Model):
     inspection_date = models.DateField(null=True, blank=True)
     findings = models.TextField()
     ORDER_BY = "inspection_id"
-
-    class schema:
-        class create(Schema):
-            inspection_id = fields.UUID()
-            inspector = fields.UUID()
-            inspection_date = fields.Date()
-            findings = fields.String()
-
-        class list(Schema):
-            inspection_id = fields.UUID()
-            inspector = fields.Nested(User.schema.default)
-            inspection_date = fields.Date()
-            findings = fields.String()
-
-        class default(Schema):
-            inspection_id = fields.UUID()
-            inspector = fields.UUID()
-            inspection_date = fields.Date()
-            findings = fields.String()
 
 
 class Property(models.Model):
@@ -72,41 +43,3 @@ class Property(models.Model):
     rent = models.FloatField(blank=True)
 
     ORDER_BY = "property_id"
-
-    class schema:
-        dependents = [
-            ("inspection", "Inspection", "create"),
-        ]
-
-        def has_dependents(self):
-            return len(self.dependents) > 0
-
-        default = Schema.from_dict(
-            {
-                "property_id": fields.UUID(),
-                "owner_id": fields.UUID(),
-                "address": fields.String(),
-                "city": fields.String(),
-                "state": fields.String(),
-                "zip": fields.Number(),
-                "description": fields.String(),
-                "rent": fields.Number(),
-            }
-        )
-
-        create = Schema.from_dict(
-            {
-                "property": fields.Nested(default),
-                "inspection": fields.Nested(Inspection.schema.create),
-            }
-        )
-
-        class list(Schema):
-            property_id = fields.UUID()
-            owner = fields.Nested(User.schema.default)
-            address = fields.String()
-            city = fields.String()
-            state = fields.String()
-            zip = fields.Number()
-            description = fields.String()
-            rent = fields.Number()
