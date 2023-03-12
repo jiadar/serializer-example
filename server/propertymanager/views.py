@@ -100,11 +100,15 @@ class PropertyViewSet(magic.MarshmallowViewSet):
         furniture = fields.Nested(FurnitureViewSet.schemas.list)
         vehicles = fields.Nested(VehicleViewSet.schemas.list)
 
+    relations = [
+        magic.Relation("inspection", model=Inspection, related_field="property"),
+        magic.Relation("furniture", model=Furniture, related_field="property"),
+        magic.Relation("vehicles", model=Vehicle, related_field="vehicles", many=True),
+    ]
+
     schemas = magic.SchemaContainer(
-        DefaultSchema(), create=CreateSchema(), list=DefaultSchema(many=True)
-    )
-    schemas.add_dep("inspection", {"model": Inspection, "related_field": "property"})
-    schemas.add_dep("furniture", {"model": Furniture, "related_field": "property"})
-    schemas.add_dep(
-        "vehicles", {"model": Vehicle, "related_field": "vehicles", "many": True}
+        DefaultSchema(),
+        create=CreateSchema(),
+        list=DefaultSchema(many=True),
+        relations=relations,
     )

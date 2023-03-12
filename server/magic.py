@@ -43,17 +43,15 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return Response({"message": f"Deserialization error: {e}"})
 
         objs = []
-        for key, dep in self.schemas.deps.items():
-            model = dep["model"]
-            related_field = dep["related_field"]
-            many = dep["many"] if "many" in dep else None
-            if key in json:
-                dep_json = json.pop(key)
-                if not isinstance(dep_json, list):
-                    dep_json = [dep_json]
-                for item in dep_json:
-                    related_obj = model(**item)
-                    objs.append((related_obj, related_field, many))
+
+        for rel in self.schemas.relations:
+            if rel.key in json:
+                rel_json = json.pop(rel.key)
+                if not isinstance(rel_json, list):
+                    rel_json = [rel_json]
+                for item in rel_json:
+                    related_obj = rel.model(**item)
+                    objs.append((related_obj, rel.related_field, rel.many))
 
         try:
             obj = self.model(**json)
@@ -75,16 +73,29 @@ class MarshmallowViewSet(viewsets.ViewSet):
                 related_model_instance.save()
                 if many:
                     obj.__getattribute__(related_field).add(related_model_instance)
-                    # obj.save()
         except DatabaseError as e:
             return Response({"message": f"Database error saving related objects: {e}"})
 
         return Response({"message": "accepted"})
 
 
-class SchemaContainer:
-    deps = {}
+class Relation:
+    def __init__(self, key, **kwargs):
+        self.key = key
+        self.model = kwargs["model"] if "model" in kwargs else key.capitalize()
+        if kwargs["related_field"]:
+            self.related_field = kwargs["related_field"]
+        else:
+            # calculate from django model
+            self.related_field = None
+        if "many" in kwargs:
+            self.many = kwargs["many"]
+        else:
+            # calculate from django model
+            self.many = None
 
+
+class SchemaContainer:
     def __init__(self, default, **kwargs):
         self.list = kwargs["list"] if "list" in kwargs else default
         self.create = kwargs["create"] if "create" in kwargs else default
@@ -94,6 +105,7 @@ class SchemaContainer:
             kwargs["partial_update"] if "partial_update" in kwargs else default
         )
         self.destroy = kwargs["destroy"] if "destroy" in kwargs else default
+        self.relations = kwargs["relations"] if "relations" in kwargs else []
 
-    def add_dep(self, key, dep):
-        self.deps[key] = dep
+    def relation(key):
+        return next((x for x in _relations if x.key == key), None)
