@@ -45,12 +45,15 @@ class MarshmallowViewSet(viewsets.ViewSet):
         objs = []
         for key, dep in self.schemas.deps.items():
             model = dep["model"]
-            references = dep["references"]
+            related_field = dep["related_field"]
+            many = dep["many"] if "many" in dep else None
             if key in json:
                 dep_json = json.pop(key)
-                dep_json[f"{references}_id"] = json[f"{references}_id"]
-                related_obj = model(**dep_json)
-                objs.append(related_obj)
+                if not isinstance(dep_json, list):
+                    dep_json = [dep_json]
+                for item in dep_json:
+                    related_obj = model(**item)
+                    objs.append((related_obj, related_field, many))
 
         try:
             obj = self.model(**json)
@@ -64,13 +67,18 @@ class MarshmallowViewSet(viewsets.ViewSet):
 
         try:
             for related_obj in objs:
-                related_obj.save()
+                (related_model_instance, related_field, many) = related_obj
+                print(type(related_model_instance))
+                pdb.set_trace()
+                if not many:
+                    related_model_instance.__setattr__(related_field, obj)
+                related_model_instance.save()
+                if many:
+                    obj.__getattribute__(related_field).add(related_model_instance)
+                    # obj.save()
         except DatabaseError as e:
             return Response({"message": f"Database error saving related objects: {e}"})
 
-        #        for obj in objs:
-        #            obj.delete()
-        #        obj.delete()
         return Response({"message": "accepted"})
 
 

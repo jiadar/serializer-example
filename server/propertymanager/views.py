@@ -8,7 +8,7 @@ from marshmallow.exceptions import \
     ValidationError as MarshmallowValidationError
 from rest_framework.response import Response
 
-from .models import Inspection, Property, User
+from .models import Furniture, Inspection, Property, User, Vehicle
 
 
 class UserViewSet(magic.MarshmallowViewSet):
@@ -23,6 +23,33 @@ class UserViewSet(magic.MarshmallowViewSet):
         city = fields.String()
         state = fields.String()
         zip = fields.Number()
+
+    schemas = magic.SchemaContainer(DefaultSchema(), list=DefaultSchema(many=True))
+
+
+class FurnitureViewSet(magic.MarshmallowViewSet):
+    model = Furniture
+
+    class DefaultSchema(Schema):
+        furniture_id = fields.UUID()
+        description = fields.String()
+        condition = fields.Number()
+        inservice_date = fields.Date()
+        expected_life = fields.Number()
+
+    schemas = magic.SchemaContainer(DefaultSchema(), list=DefaultSchema(many=True))
+
+
+class VehicleViewSet(magic.MarshmallowViewSet):
+    model = Vehicle
+
+    class DefaultSchema(Schema):
+        vehicle_id = fields.UUID()
+        make = fields.String()
+        model = fields.String()
+        year = fields.Number()
+        description = fields.String()
+        last_maintenance = fields.Date()
 
     schemas = magic.SchemaContainer(DefaultSchema(), list=DefaultSchema(many=True))
 
@@ -70,8 +97,14 @@ class PropertyViewSet(magic.MarshmallowViewSet):
         description = fields.String()
         rent = fields.Number()
         inspection = fields.Nested(InspectionViewSet.schemas.create)
+        furniture = fields.Nested(FurnitureViewSet.schemas.list)
+        vehicles = fields.Nested(VehicleViewSet.schemas.list)
 
     schemas = magic.SchemaContainer(
         DefaultSchema(), create=CreateSchema(), list=DefaultSchema(many=True)
     )
-    schemas.add_dep("inspection", {"model": Inspection, "references": "property"})
+    schemas.add_dep("inspection", {"model": Inspection, "related_field": "property"})
+    schemas.add_dep("furniture", {"model": Furniture, "related_field": "property"})
+    schemas.add_dep(
+        "vehicles", {"model": Vehicle, "related_field": "vehicles", "many": True}
+    )
