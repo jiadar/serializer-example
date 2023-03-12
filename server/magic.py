@@ -37,42 +37,50 @@ class MarshmallowViewSet(viewsets.ViewSet):
         )
 
     def create(self, request):
+        # Try to turn the json data received into a nested django ORM *root* object
         try:
-            json = self.schemas.create.load(request.data)
+            root_obj = self.schemas.create.load(request.data)
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
 
-        objs = []
+        # Make a list of child objects by extracting all the related objects
+        # from the nested objects. We should be left with the primary *root* object
+        children = []
+        for relation in self.schemas.relations:
+            if relation.key in root_obj:
+                items = (
+                    root_obj.pop(relation.key)
+                    if isinstance(root_obj[relation.key], list)
+                    else [root_obj.pop(relation.key)]
+                )
+                children.extend([item | {"_relation": relation} for item in items])
 
-        for rel in self.schemas.relations:
-            if rel.key in json:
-                rel_json = json.pop(rel.key)
-                if not isinstance(rel_json, list):
-                    rel_json = [rel_json]
-                for item in rel_json:
-                    related_obj = rel.model(**item)
-                    objs.append((related_obj, rel.related_field, rel.many))
-
+        # Now try to create the *root* object first. We need the root object created
+        # in order to add dependent objects.
         try:
-            obj = self.model(**json)
+            root_obj = self.model(**root_obj)
         except DjangoValidationError as e:
             return Response({"message": f"Validation error: {e}"})
 
+        # Try to save the root object to the database
         try:
-            obj.save()
+            root_obj.save()
         except DatabaseError as e:
             return Response({"message": f"Database error saving primary object: {e}"})
 
+        # Attach the child objects to the root object. If the object is a 1:many we attach
+        # the root object onto the child object, then we save the child object.
+        # If it's a many:many, we attach the possibly many objects to the root object
+        # after saving the child object.
         try:
-            for related_obj in objs:
-                (related_model_instance, related_field, many) = related_obj
-                print(type(related_model_instance))
-                pdb.set_trace()
-                if not many:
-                    related_model_instance.__setattr__(related_field, obj)
-                related_model_instance.save()
-                if many:
-                    obj.__getattribute__(related_field).add(related_model_instance)
+            for child in children:
+                relation = child.pop("_relation")
+                child_obj = relation.model(**child)
+                if not relation.many:
+                    child_obj.__setattr__(relation.related_field, root_obj)
+                child_obj.save()
+                if relation.many:
+                    root_obj.__getattribute__(relation.related_field).add(child_obj)
         except DatabaseError as e:
             return Response({"message": f"Database error saving related objects: {e}"})
 
@@ -83,15 +91,15 @@ class Relation:
     def __init__(self, key, **kwargs):
         self.key = key
         self.model = kwargs["model"] if "model" in kwargs else key.capitalize()
-        if kwargs["related_field"]:
+        if "related_field" in kwargs:
             self.related_field = kwargs["related_field"]
         else:
-            # calculate from django model
+            # todo - calculate from django model
             self.related_field = None
         if "many" in kwargs:
             self.many = kwargs["many"]
         else:
-            # calculate from django model
+            # todo - calculate from django model
             self.many = None
 
 
