@@ -51,6 +51,25 @@ Accept: application/json;charset=utf-8
 GET http://localhost:8000/api/users/
 Accept: application/json;charset=utf-8
 
+# Post a property by itself
+POST http://localhost:8000/api/properties/
+Content-Type: application/json
+Accept: application/json;charset=utf-8
+
+{
+"property":
+    {
+        "property_id": "d02131c2-8230-49fa-bb37-b12797df0009",
+        "owner_id": "1f8be170-f711-64d4-a807-6a7d91c80bc9",
+        "address": "1618 Sullivan Ave #385",
+        "city": "Daly City",
+        "state": "CA",
+        "zip": 70115,
+        "description": "fabulous",
+        "rent": 1000.50
+    }
+}
+
 # Post a property with an inspection
 # (an inspection is required before property is posted)
 POST http://localhost:8000/api/properties/
@@ -58,146 +77,170 @@ Content-Type: application/json
 Accept: application/json;charset=utf-8
 
 {
-    "property_id": "d02131c2-8230-49fa-bb37-b12797df0009",
-    "owner_id": "1f8be170-f711-64d4-a807-6a7d91c80bc9",
-    "address": "1618 Sullivan Ave #385",
-    "city": "Daly City",
-    "state": "CA",
-    "zip": 70115,
-    "description": "fabulous",
-    "rent": 1000.50,
-    "inspection": {
-        "inspection_id": "faebe42c-ad03-43d7-bd71-15f0a1cd9735",
-        "inspector_id":  "1f8be170-f711-64d4-a807-6a7d91c80bc9",
-        "inspection_date": "2022-11-09",
-        "findings": "none"
+    "property": {
+        "property_id": "d02131c2-8230-49fa-bb37-b12797df0009",
+        "owner_id": "1f8be170-f711-64d4-a807-6a7d91c80bc9",
+        "address": "1618 Sullivan Ave #385",
+        "city": "Daly City",
+        "state": "CA",
+        "zip": 70115,
+        "description": "fabulous",
+        "rent": 1000.50,
+        "inspection": {
+            "inspection_id": "faebe42c-ad03-43d7-bd71-15f0a1cd9735",
+            "inspector_id":  "1f8be170-f711-64d4-a807-6a7d91c80bc9",
+            "inspection_date": "2022-11-09",
+            "findings": "none"
+        }
     }
 }
 
-# Post a property with some furnitures
+# Post a property with some furniture
 POST http://localhost:8000/api/properties/
 Content-Type: application/json
 Accept: application/json;charset=utf-8
 
 {
-    "property_id": "d02131c2-8230-49fa-bb37-b12797df0009",
-    "owner_id": "1f8be170-f711-64d4-a807-6a7d91c80bc9",
-    "address": "1618 Sullivan Ave #385",
-    "city": "Daly City",
-    "state": "CA",
-    "zip": 70115,
-    "description": "fabulous",
-    "rent": 1000.50,
-    "furniture": [
-        {
-            "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1c",
-            "description": "Sofa",
-            "condition": 10,
-            "inservice_date": "2022-12-01",
-            "expected_life": 48
-        },
-        {
-            "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1d",
-            "description": "Table",
-            "condition": 10,
-            "inservice_date": "2022-12-02",
-            "expected_life": 48
-        },
-        {
-            "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1e",
-            "description": "Chairs",
-            "condition": 10,
-            "inservice_date": "2022-12-03",
-            "expected_life": 48
+"property":
+    {
+        "property_id": "d02131c2-8230-49fa-bb37-b12797df0009",
+        "owner_id": "1f8be170-f711-64d4-a807-6a7d91c80bc9",
+        "address": "1618 Sullivan Ave #385",
+        "city": "Daly City",
+        "state": "CA",
+        "zip": 70115,
+        "description": "fabulous",
+        "rent": 1000.50,
+        "furniture": [
+            {
+                "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1c",
+                "description": "Sofa",
+                "condition": 10,
+                "inservice_date": "2022-12-01",
+                "expected_life": 48
+            },
+            {
+                "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1d",
+                "description": "Chairs",
+                "condition": 10,
+                "inservice_date": "2022-12-01",
+                "expected_life": 48
+            },
+            {
+                "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1e",
+                "description": "Desk",
+                "condition": 10,
+                "inservice_date": "2022-12-01",
+                "expected_life": 48
+            }
+        ],
+        "inspection": {
+            "inspection_id": "faebe42c-ad03-43d7-bd71-15f0a1cd9735",
+            "inspector_id":  "1f8be170-f711-64d4-a807-6a7d91c80bc9",
+            "inspection_date": "2022-11-09",
+            "findings": "none"
         }
-    ],
-    "inspection": {
-        "inspection_id": "faebe42c-ad03-43d7-bd71-15f0a1cd9735",
-        "inspector_id":  "1f8be170-f711-64d4-a807-6a7d91c80bc9",
-        "inspection_date": "2022-11-09",
-        "findings": "none"
     }
 }
-
 # Post a property with some furnitures and vehicles (many:many)
 POST http://localhost:8000/api/properties/
 Content-Type: application/json
 Accept: application/json;charset=utf-8
 
 {
-    "property_id": "d02131c2-8230-49fa-bb37-b12797df0009",
-    "owner_id": "1f8be170-f711-64d4-a807-6a7d91c80bc9",
-    "address": "1618 Sullivan Ave #385",
-    "city": "Daly City",
-    "state": "CA",
-    "zip": 70115,
-    "description": "fabulous",
-    "rent": 1000.50,
-    "furniture": [
-        {
-            "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1c",
-            "description": "Sofa",
-            "condition": 10,
-            "inservice_date": "2022-12-01",
-            "expected_life": 48
+"property":
+    {
+        "property_id": "d02131c2-8230-49fa-bb37-b12797df0009",
+        "owner_id": "1f8be170-f711-64d4-a807-6a7d91c80bc9",
+        "address": "1618 Sullivan Ave #385",
+        "city": "Daly City",
+        "state": "CA",
+        "zip": 70115,
+        "description": "fabulous",
+        "rent": 1000.50,
+        "furniture": {
+            "0": {
+                "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1c",
+                "description": "Sofa",
+                "condition": 10,
+                "inservice_date": "2022-12-01",
+                "expected_life": 48
+            },
+            "1": {
+                "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1d",
+                "description": "Table",
+                "condition": 10,
+                "inservice_date": "2022-12-01",
+                "expected_life": 48
+            },
+            "2": {
+                "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1e",
+                "description": "Chairs",
+                "condition": 10,
+                "inservice_date": "2022-12-01",
+                "expected_life": 48
+            }
         },
-        {
-            "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1d",
-            "description": "Table",
-            "condition": 10,
-            "inservice_date": "2022-12-02",
-            "expected_life": 48
+        "inspection": {
+            "inspection_id": "faebe42c-ad03-43d7-bd71-15f0a1cd9735",
+            "inspector_id":  "1f8be170-f711-64d4-a807-6a7d91c80bc9",
+            "inspection_date": "2022-11-09",
+            "findings": "none",
+            "inspection_items": {
+                "0": {
+                    "inspection_item": {
+                        "inspection_item_id": "b586c097-13d3-491f-b084-577ca5afe1ec",
+                        "description": "foo"
+                    }
+                },
+                "1": {
+                    "inspection_item": {
+                        "inspection_item_id": "b586c097-13d3-491f-b084-577ca5afe1ed",
+                        "description": "bar"
+                    }
+                },
+                "2": {
+                    "inspection_item": {
+                        "inspection_item_id": "b586c097-13d3-491f-b084-577ca5afe1ee",
+                        "description": "baz"
+                    }
+                }
+            }
         },
-        {
-            "furniture_id": "53cd8f8f-0bed-414d-b29f-e99d41489b1e",
-            "description": "Chairs",
-            "condition": 10,
-            "inservice_date": "2022-12-03",
-            "expected_life": 48
+        "vehicles": {
+            "0": {
+                "vehicle": {
+                    "vehicle_id": "6f7aed5d-500a-48d1-933b-b51d88551997",
+                    "make": "Chevrolet",
+                    "model": "Express",
+                    "year": 2003,
+                    "description": "Van",
+                    "last_maintenance": "2023-02-10"
+                }
+            },
+            "1": {
+                "vehicle": {
+                    "vehicle_id": "6f7aed5d-500a-48d1-933b-b51d88551998",
+                    "make": "Chevrolet",
+                    "model": "Express",
+                    "year": 2004,
+                    "description": "Van",
+                    "last_maintenance": "2023-02-10"
+                }
+            },
+            "2": {
+                "vehicle": {
+                    "vehicle_id": "6f7aed5d-500a-48d1-933b-b51d88551999",
+                    "make": "Chevrolet",
+                    "model": "Express",
+                    "year": 2005,
+                    "description": "Van",
+                    "last_maintenance": "2023-02-10"
+                }
+            }
         }
-    ],
-    "inspection": {
-        "inspection_id": "faebe42c-ad03-43d7-bd71-15f0a1cd9735",
-        "inspector_id":  "1f8be170-f711-64d4-a807-6a7d91c80bc9",
-        "inspection_date": "2022-11-09",
-        "findings": "none"
-    },
-    "vehicles": [
-        {
-            "vehicle_id": "6f7aed5d-500a-48d1-933b-b51d88551997",
-            "make": "Chevrolet",
-            "model": "Express",
-            "year": 2003,
-            "description": "Van",
-            "last_maintenance": "2023-02-10"
-        },
-        {
-            "vehicle_id": "6f7aed5d-500a-48d1-933b-b51d88551998",
-            "make": "Chevrolet",
-            "model": "Express",
-            "year": 2004,
-            "description": "Van",
-            "last_maintenance": "2023-02-10"
-        },
-        {
-            "vehicle_id": "6f7aed5d-500a-48d1-933b-b51d88551999",
-            "make": "Chevrolet",
-            "model": "Express",
-            "year": 2005,
-            "description": "Van",
-            "last_maintenance": "2023-02-10"
-        },
-        {
-            "vehicle_id": "6f7aed5d-500a-48d1-933b-b51d8855199a",
-            "make": "Chevrolet",
-            "model": "Express",
-            "year": 2006,
-            "description": "Van",
-            "last_maintenance": "2023-02-10"
-        }
-    ]
+    }
 }
-
 # Get the properties
 GET http://localhost:8000/api/properties/
 Accept: application/json;charset=utf-8

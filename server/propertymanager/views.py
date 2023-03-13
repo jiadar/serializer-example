@@ -8,7 +8,8 @@ from marshmallow.exceptions import \
     ValidationError as MarshmallowValidationError
 from rest_framework.response import Response
 
-from .models import Furniture, Inspection, Property, User, Vehicle
+from .models import (Furniture, Inspection, InspectionItem, Property, User,
+                     Vehicle)
 
 
 class UserViewSet(magic.MarshmallowViewSet):
@@ -24,7 +25,7 @@ class UserViewSet(magic.MarshmallowViewSet):
         state = fields.String()
         zip = fields.Number()
 
-    schemas = magic.SchemaContainer(DefaultSchema(), list=DefaultSchema(many=True))
+    schemas = magic.SchemaContainer("user", DefaultSchema)
 
 
 class FurnitureViewSet(magic.MarshmallowViewSet):
@@ -37,7 +38,7 @@ class FurnitureViewSet(magic.MarshmallowViewSet):
         inservice_date = fields.Date()
         expected_life = fields.Number()
 
-    schemas = magic.SchemaContainer(DefaultSchema(), list=DefaultSchema(many=True))
+    schemas = magic.SchemaContainer("furniture", DefaultSchema)
 
 
 class VehicleViewSet(magic.MarshmallowViewSet):
@@ -51,7 +52,17 @@ class VehicleViewSet(magic.MarshmallowViewSet):
         description = fields.String()
         last_maintenance = fields.Date()
 
-    schemas = magic.SchemaContainer(DefaultSchema(), list=DefaultSchema(many=True))
+    schemas = magic.SchemaContainer("vehicle", DefaultSchema)
+
+
+class InspectionItemViewSet(magic.MarshmallowViewSet):
+    model = InspectionItem
+
+    class DefaultSchema(Schema):
+        inspection_item_id = fields.UUID()
+        description = fields.String()
+
+    schemas = magic.SchemaContainer("inspection_item", DefaultSchema)
 
 
 class InspectionViewSet(magic.MarshmallowViewSet):
@@ -68,9 +79,21 @@ class InspectionViewSet(magic.MarshmallowViewSet):
         inspector_id = fields.UUID()
         inspection_date = fields.Date()
         findings = fields.String()
+        inspection_items = fields.List(
+            fields.Nested(InspectionItemViewSet.DefaultSchema)
+        )
+
+    relations = [
+        magic.Relation(
+            "inspection_items", model=InspectionItem, related_field="inspection"
+        ),
+    ]
 
     schemas = magic.SchemaContainer(
-        DefaultSchema(), create=CreateSchema(), list=DefaultSchema(many=True)
+        "inspection",
+        DefaultSchema,
+        create=CreateSchema,
+        relations=relations,
     )
 
 
@@ -96,19 +119,37 @@ class PropertyViewSet(magic.MarshmallowViewSet):
         zip = fields.Number()
         description = fields.String()
         rent = fields.Number()
-        inspection = fields.Nested(InspectionViewSet.schemas.create)
-        furniture = fields.Nested(FurnitureViewSet.schemas.list)
-        vehicles = fields.Nested(VehicleViewSet.schemas.list)
+        inspections = fields.Dict(
+            keys=fields.Str(),
+            values=fields.Dict(
+                keys=fields.Constant("inspection"),
+                values=fields.Nested(InspectionViewSet.DefaultSchema),
+            ),
+        )
+        furniture = fields.Dict(
+            keys=fields.Str(),
+            values=fields.Dict(
+                keys=fields.Constant("furniture"),
+                values=fields.Nested(FurnitureViewSet.DefaultSchema),
+            ),
+        )
+        vehicles = fields.Dict(
+            keys=fields.Str(),
+            values=fields.Dict(
+                keys=fields.Constant("vehicle"),
+                values=fields.Nested(VehicleViewSet.DefaultSchema),
+            ),
+        )
 
     relations = [
         magic.Relation("inspection", model=Inspection, related_field="property"),
         magic.Relation("furniture", model=Furniture, related_field="property"),
-        magic.Relation("vehicles", model=Vehicle, related_field="vehicles", many=True),
+        magic.Relation("vehicles", model=Vehicle, related_field="vehicles"),
     ]
 
     schemas = magic.SchemaContainer(
-        DefaultSchema(),
-        create=CreateSchema(),
-        list=DefaultSchema(many=True),
+        "property",
+        DefaultSchema,
+        create=CreateSchema,
         relations=relations,
     )

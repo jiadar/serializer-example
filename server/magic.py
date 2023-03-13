@@ -1,9 +1,11 @@
 import pdb
 from importlib import import_module
+from pprint import pprint as pp
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.paginator import Paginator
 from django.db import Error as DatabaseError
+from marshmallow import Schema, fields
 from marshmallow.exceptions import \
     ValidationError as MarshmallowValidationError
 from rest_framework import viewsets
@@ -36,15 +38,7 @@ class MarshmallowViewSet(viewsets.ViewSet):
             )
         )
 
-    def create(self, request):
-        # Try to turn the json data received into a nested django ORM *root* object
-        try:
-            root_obj = self.schemas.create.load(request.data)
-        except MarshmallowValidationError as e:
-            return Response({"message": f"Deserialization error: {e}"})
-
-        # Make a list of child objects by extracting all the related objects
-        # from the nested objects. We should be left with the primary *root* object
+    def _process(self, root_obj):
         children = []
         for relation in self.schemas.relations:
             if relation.key in root_obj:
@@ -76,6 +70,7 @@ class MarshmallowViewSet(viewsets.ViewSet):
             for child in children:
                 relation = child.pop("_relation")
                 child_obj = relation.model(**child)
+                _process(child_obj)
                 if not relation.many:
                     child_obj.__setattr__(relation.related_field, root_obj)
                 child_obj.save()
@@ -85,6 +80,43 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return Response({"message": f"Database error saving related objects: {e}"})
 
         return Response({"message": "accepted"})
+
+    def _depth(self, obj, depth=1):
+        if not isinstance(obj, dict) or not obj:
+            return depth
+        return max(self._depth(v, depth + 1) for k, v in obj.items())
+
+    def _extract_elements2(self, json, stack, depth, relations):
+        relation_keys = [item.key for item in relations]
+        for k, v in json.items():
+            print(f"Processing {k}")
+            if k in relation_keys:
+                if isinstance(v, dict):
+                    print(f"... Extracting relation {k}")
+                    self._extract_elements2(
+                        v, f"[{depth}] stack . {k}", depth + 1, relations
+                    )
+                if isinstance(v, list):
+                    print(f"... Extracting relation {k}")
+                    for i in v:
+                        if isinstance(i, dict):
+                            self._extract_elements2(
+                                v, f"[{depth}] stack . {k}", depth + 1, relations
+                            )
+        return stack
+
+    def create(self, request):
+        pdb.set_trace()
+        try:
+            root_obj = self.schemas.create.load(request.data)
+        except MarshmallowValidationError as e:
+            return Response({"message": f"Deserialization error: {e}"})
+        stack = self._extract_elements2(
+            root_obj["property"], "", 0, self.schemas.relations
+        )
+        pp(stack)
+        pdb.set_trace()
+        return self._process(root_obj)
 
 
 class Relation:
@@ -104,15 +136,33 @@ class Relation:
 
 
 class SchemaContainer:
-    def __init__(self, default, **kwargs):
-        self.list = kwargs["list"] if "list" in kwargs else default
-        self.create = kwargs["create"] if "create" in kwargs else default
-        self.retrieve = kwargs["retrieve"] if "retrieve" in kwargs else default
-        self.update = kwargs["update"] if "update" in kwargs else default
-        self.partial_update = (
-            kwargs["partial_update"] if "partial_update" in kwargs else default
+    def _wrap(self, view, schema):
+        name = f"{self.root.capitalize()}{view.capitalize()}Schema".replace("_", "")
+        return Schema.from_dict(
+            {self.root: fields.Nested(schema)},
+            name=name,
         )
-        self.destroy = kwargs["destroy"] if "destroy" in kwargs else default
+
+    def _gen_schema(self, view, kwargs):
+        return (
+            self._wrap(view, kwargs[view])
+            if view in kwargs
+            else self._wrap(view, self.default)
+        )
+
+    def __init__(self, root, default, **kwargs):
+        self.root = root
+        self.default = self._wrap("default", default)
+        for view in [
+            "list",
+            "create",
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
+            wrapped_schema = self._gen_schema(view, kwargs)
+            self.__setattr__(view, wrapped_schema())
         self.relations = kwargs["relations"] if "relations" in kwargs else []
 
     def relation(key):

@@ -31,6 +31,14 @@ class Inspection(models.Model):
     property = models.ForeignKey("Property", on_delete=models.CASCADE)
 
 
+class InspectionItem(models.Model):
+    inspection_item_id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=True
+    )
+    inspection = models.ForeignKey("Inspection", on_delete=models.CASCADE)
+    description = models.TextField()
+
+
 class Furniture(models.Model):
     furniture_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=True)
     description = models.TextField(null=True, blank=True)
