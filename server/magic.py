@@ -81,59 +81,63 @@ class MarshmallowViewSet(viewsets.ViewSet):
 
         return Response({"message": "accepted"})
 
-    def _depth(self, obj, depth=1):
-        if not isinstance(obj, dict) or not obj:
-            return depth
-        return max(self._depth(v, depth + 1) for k, v in obj.items())
-
-    def _extract_elements2(self, json, stack, depth, relations, it=0):
-        it = it + 1
-        print(f"iter {it} [{depth}] {stack}")
-        root_key = "property"
-        relation_keys = [item.key for item in relations] + [root_key]
-        for k, v in json.items():
-            stack_arg = f"{stack} . {k}"
-            if k in relation_keys:
-                print(f"Calling _extract_elements2()")
-                self._extract_elements2(v, stack_arg, depth + 1, relations, it)
-            else:
-                print(f"Returning {stack}")
-                return stack
-
-    def _extract_elements3(self, json, relations, result=[]):
+    def _extract_elements(self, json, relations, result=[]):
         root_key = "property"
         relation_keys = [item.key for item in relations] + [root_key]
         result = []
 
-        def _recurse(json):
+        def _get_related(json):
             if isinstance(json, dict):
                 for k, v in json.items():
                     if k in relation_keys:
-                        print(f"appending {k}")
                         result.append({k: v})
-                    _recurse(v)
+                    _get_related(v)
 
-        _recurse(json)
+        _get_related(json)
 
-        def _delete_keys(json, keys, depth=0):
+        def _delete_nested(json, keys, depth=0):
             if depth > 0:
                 for key in keys:
                     if key in json.keys():
-                        print(f"deleting {key} from {json}")
                         json.pop(key)
             for v in json.values():
                 if isinstance(v, dict):
-                    _delete_keys(v, keys, depth + 1)
+                    _delete_nested(v, keys, depth + 1)
 
-        pruned_result = [_delete_keys(item, relation_keys) for item in result]
-        return pruned_result
+        pruned_result = [_delete_nested(item, self.nested_fields) for item in result]
+
+        for item in result:
+            for index, relation in enumerate(relations):
+                if relation.key in item:
+                    if "_internal" not in item[relation.key]:
+                        item[relation.key]["_internal"] = {}
+                    internal = item[relation.key]["_internal"]
+                    internal["relation"] = relation
+                    internal["key"] = relation.key
+                    internal["model"] = relation.model
+                    internal["related_field"] = relation.related_field
+                    internal["order"] = index
+        return result
+
+    # not getting inspection item
+    # need to go through ordering for insertion and better spec that
+    def _get_order(self, objs, depth=0):
+        res = []
+        for item in objs:
+            key = next(iter(item))
+            if depth == 0 and "_internal" not in item[key]:
+                return [item]
+            if "_internal" in item[key] and depth == item[key]["_internal"]["order"]:
+                res.append(item)
+        return res
 
     def create(self, request):
         try:
             root_obj = self.schemas.create.load(request.data)
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
-        res = self._extract_elements3(root_obj, self.schemas.relations)
+        res = self._extract_elements(root_obj, self.schemas.relations)
+        ord = self._get_order(res, 3)
         pdb.set_trace()
         return Response({"message": "accepted"})
         # return self._process(root_obj["property"])

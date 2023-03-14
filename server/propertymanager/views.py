@@ -67,6 +67,7 @@ class InspectionItemViewSet(magic.MarshmallowViewSet):
 
 class InspectionViewSet(magic.MarshmallowViewSet):
     model = Inspection
+    nested_fields = ["inspection_items"]
 
     class DefaultSchema(Schema):
         inspection_id = fields.UUID()
@@ -79,8 +80,12 @@ class InspectionViewSet(magic.MarshmallowViewSet):
         inspector_id = fields.UUID()
         inspection_date = fields.Date()
         findings = fields.String()
-        inspection_items = fields.List(
-            fields.Nested(InspectionItemViewSet.DefaultSchema)
+        inspection_items = fields.Dict(
+            keys=fields.Str(),
+            values=fields.Dict(
+                keys=fields.Constant("inspection_item"),
+                values=fields.Nested(InspectionItemViewSet.DefaultSchema),
+            ),
         )
 
     relations = [
@@ -100,6 +105,7 @@ class InspectionViewSet(magic.MarshmallowViewSet):
 class PropertyViewSet(magic.MarshmallowViewSet):
     model = Property
     root_key = "property"
+    nested_fields = ["inspections", "furniture_items", "vehicles", "inspection_items"]
 
     class DefaultSchema(Schema):
         property_id = fields.UUID()
@@ -127,7 +133,7 @@ class PropertyViewSet(magic.MarshmallowViewSet):
                 values=fields.Nested(InspectionViewSet.CreateSchema),
             ),
         )
-        furniture = fields.Dict(
+        furniture_items = fields.Dict(
             keys=fields.Str(),
             values=fields.Dict(
                 keys=fields.Constant("furniture"),
@@ -142,10 +148,14 @@ class PropertyViewSet(magic.MarshmallowViewSet):
             ),
         )
 
+    # An ordered list of how to commit the relations to the database
     relations = [
+        magic.Relation(
+            "inspection_item", model=InspectionItem, related_field="inspection"
+        ),
         magic.Relation("inspection", model=Inspection, related_field="property"),
         magic.Relation("furniture", model=Furniture, related_field="property"),
-        magic.Relation("vehicles", model=Vehicle, related_field="vehicles"),
+        magic.Relation("vehicle", model=Vehicle, related_field="vehicles", many=True),
     ]
 
     schemas = magic.SchemaContainer(
