@@ -86,37 +86,57 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return depth
         return max(self._depth(v, depth + 1) for k, v in obj.items())
 
-    def _extract_elements2(self, json, stack, depth, relations):
-        relation_keys = [item.key for item in relations]
+    def _extract_elements2(self, json, stack, depth, relations, it=0):
+        it = it + 1
+        print(f"iter {it} [{depth}] {stack}")
+        root_key = "property"
+        relation_keys = [item.key for item in relations] + [root_key]
         for k, v in json.items():
-            print(f"Processing {k}")
+            stack_arg = f"{stack} . {k}"
             if k in relation_keys:
+                print(f"Calling _extract_elements2()")
+                self._extract_elements2(v, stack_arg, depth + 1, relations, it)
+            else:
+                print(f"Returning {stack}")
+                return stack
+
+    def _extract_elements3(self, json, relations, result=[]):
+        root_key = "property"
+        relation_keys = [item.key for item in relations] + [root_key]
+        result = []
+
+        def _recurse(json):
+            if isinstance(json, dict):
+                for k, v in json.items():
+                    if k in relation_keys:
+                        print(f"appending {k}")
+                        result.append({k: v})
+                    _recurse(v)
+
+        _recurse(json)
+
+        def _delete_keys(json, keys, depth=0):
+            if depth > 0:
+                for key in keys:
+                    if key in json.keys():
+                        print(f"deleting {key} from {json}")
+                        json.pop(key)
+            for v in json.values():
                 if isinstance(v, dict):
-                    print(f"... Extracting relation {k}")
-                    self._extract_elements2(
-                        v, f"[{depth}] stack . {k}", depth + 1, relations
-                    )
-                if isinstance(v, list):
-                    print(f"... Extracting relation {k}")
-                    for i in v:
-                        if isinstance(i, dict):
-                            self._extract_elements2(
-                                v, f"[{depth}] stack . {k}", depth + 1, relations
-                            )
-        return stack
+                    _delete_keys(v, keys, depth + 1)
+
+        pruned_result = [_delete_keys(item, relation_keys) for item in result]
+        return pruned_result
 
     def create(self, request):
-        pdb.set_trace()
         try:
             root_obj = self.schemas.create.load(request.data)
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
-        stack = self._extract_elements2(
-            root_obj["property"], "", 0, self.schemas.relations
-        )
-        pp(stack)
+        res = self._extract_elements3(root_obj, self.schemas.relations)
         pdb.set_trace()
-        return self._process(root_obj)
+        return Response({"message": "accepted"})
+        # return self._process(root_obj["property"])
 
 
 class Relation:
@@ -137,11 +157,12 @@ class Relation:
 
 class SchemaContainer:
     def _wrap(self, view, schema):
-        name = f"{self.root.capitalize()}{view.capitalize()}Schema".replace("_", "")
-        return Schema.from_dict(
-            {self.root: fields.Nested(schema)},
+        name = f"{self.root_key.capitalize()}{view.capitalize()}Schema".replace("_", "")
+        wrapped_schema = Schema.from_dict(
+            {self.root_key: fields.Nested(schema)},
             name=name,
         )
+        return wrapped_schema
 
     def _gen_schema(self, view, kwargs):
         return (
@@ -150,8 +171,8 @@ class SchemaContainer:
             else self._wrap(view, self.default)
         )
 
-    def __init__(self, root, default, **kwargs):
-        self.root = root
+    def __init__(self, root_key, default, **kwargs):
+        self.root_key = root_key
         self.default = self._wrap("default", default)
         for view in [
             "list",

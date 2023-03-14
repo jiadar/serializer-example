@@ -99,6 +99,7 @@ class InspectionViewSet(magic.MarshmallowViewSet):
 
 class PropertyViewSet(magic.MarshmallowViewSet):
     model = Property
+    root_key = "property"
 
     class DefaultSchema(Schema):
         property_id = fields.UUID()
@@ -123,7 +124,7 @@ class PropertyViewSet(magic.MarshmallowViewSet):
             keys=fields.Str(),
             values=fields.Dict(
                 keys=fields.Constant("inspection"),
-                values=fields.Nested(InspectionViewSet.DefaultSchema),
+                values=fields.Nested(InspectionViewSet.CreateSchema),
             ),
         )
         furniture = fields.Dict(

@@ -86,11 +86,15 @@ Accept: application/json;charset=utf-8
         "zip": 70115,
         "description": "fabulous",
         "rent": 1000.50,
-        "inspection": {
-            "inspection_id": "faebe42c-ad03-43d7-bd71-15f0a1cd9735",
-            "inspector_id":  "1f8be170-f711-64d4-a807-6a7d91c80bc9",
-            "inspection_date": "2022-11-09",
-            "findings": "none"
+        "inspections": {
+            "0": {
+                "inspection": {
+                    "inspection_id": "faebe42c-ad03-43d7-bd71-15f0a1cd9735",
+                    "inspector_id":  "1f8be170-f711-64d4-a807-6a7d91c80bc9",
+                    "inspection_date": "2022-11-09",
+                    "findings": "none"
+                }
+            }
         }
     }
 }
