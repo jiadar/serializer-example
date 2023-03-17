@@ -113,9 +113,9 @@ class MarshmallowViewSet(viewsets.ViewSet):
         for item in result:
             for index, relation in enumerate(relations):
                 if relation.key in item:
-                    if "_internal" not in item[relation.key]:
-                        item[relation.key]["_internal"] = {}
-                    internal = item[relation.key]["_internal"]
+                    if "_relation" not in item[relation.key]:
+                        item[relation.key]["_relation"] = {}
+                    internal = item[relation.key]["_relation"]
                     internal["relation"] = relation
 
         return result
@@ -123,29 +123,20 @@ class MarshmallowViewSet(viewsets.ViewSet):
     # not getting inspection item
     # need to go through ordering for insertion and better spec that
     # need to get property by itself
-    def _get_order(self, objs, depth=0):
+    def _get_order(self, obj_list, depth=0):
         res = []
-        root_key = "property"
-        for item in objs:
-            key = next(iter(item))
-            print(key, "_internal" in item)
-            if depth == 0 and "_internal" not in item[key]:
-                relation_keys = [item.key for item in self.schemas.relations]
-                return [delete_keys(item, self.nested_fields)]
-            if (
-                "_internal" in item[key]
-                and depth == item[key]["_internal"]["relation"].order
-            ):
-                relation_keys = [
-                    item.key for item in self.schemas.relations if item.order != depth
-                ] + [root_key]
-                res.append(item)
+        if depth == 0:
+            for obj in obj_list:
+                for key in obj.keys():
+                    if "_relation" not in obj[key]:
+                        res.append(obj)
 
+        pdb.set_trace()
         return res
 
     def _flatten(self, obj, depth=0):
         key = next(iter(obj))
-        if "_internal" in obj[key]:
+        if "_relation" in obj[key]:
             rels = [
                 relation.key for relation in self.schemas.relations
             ] + self.nested_fields
@@ -161,6 +152,7 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return Response({"message": f"Deserialization error: {e}"})
         res = self._extract_elements(root_obj, self.schemas.relations)
         flat = [self._flatten(i) for i in res]
+        ord = [self._get_order(flat, i) for i in range(0, len(self.schemas.relations))]
         pdb.set_trace()
         ord = [self._get_order(res, i) for i in [5, 4, 3, 2, 1, 0]]
         return Response({"message": "accepted"})
