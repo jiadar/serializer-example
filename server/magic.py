@@ -1,4 +1,6 @@
 import pdb
+from collections.abc import MutableMapping
+from contextlib import suppress
 from importlib import import_module
 from pprint import pprint as pp
 
@@ -10,6 +12,19 @@ from marshmallow.exceptions import \
     ValidationError as MarshmallowValidationError
 from rest_framework import viewsets
 from rest_framework.response import Response
+
+
+def delete_keys(obj, keys):
+    keys_set = set(keys)
+
+    modified_dict = {}
+    for key, value in obj.items():
+        if key not in keys_set:
+            if isinstance(value, MutableMapping):
+                modified_dict[key] = delete_keys(value, keys_set)
+            else:
+                modified_dict[key] = value
+    return modified_dict
 
 
 def paginated_result(schema, paginator, page_number):
@@ -95,17 +110,6 @@ class MarshmallowViewSet(viewsets.ViewSet):
 
         _get_related(json)
 
-        def _delete_nested(json, keys, depth=0):
-            if depth > 0:
-                for key in keys:
-                    if key in json.keys():
-                        json.pop(key)
-            for v in json.values():
-                if isinstance(v, dict):
-                    _delete_nested(v, keys, depth + 1)
-
-        pruned_result = [_delete_nested(item, self.nested_fields) for item in result]
-
         for item in result:
             for index, relation in enumerate(relations):
                 if relation.key in item:
@@ -113,23 +117,42 @@ class MarshmallowViewSet(viewsets.ViewSet):
                         item[relation.key]["_internal"] = {}
                     internal = item[relation.key]["_internal"]
                     internal["relation"] = relation
-                    internal["key"] = relation.key
-                    internal["model"] = relation.model
-                    internal["related_field"] = relation.related_field
-                    internal["order"] = index
+
         return result
 
     # not getting inspection item
     # need to go through ordering for insertion and better spec that
+    # need to get property by itself
     def _get_order(self, objs, depth=0):
         res = []
+        root_key = "property"
         for item in objs:
             key = next(iter(item))
+            print(key, "_internal" in item)
             if depth == 0 and "_internal" not in item[key]:
-                return [item]
-            if "_internal" in item[key] and depth == item[key]["_internal"]["order"]:
+                relation_keys = [item.key for item in self.schemas.relations]
+                return [delete_keys(item, self.nested_fields)]
+            if (
+                "_internal" in item[key]
+                and depth == item[key]["_internal"]["relation"].order
+            ):
+                relation_keys = [
+                    item.key for item in self.schemas.relations if item.order != depth
+                ] + [root_key]
                 res.append(item)
+
         return res
+
+    def _flatten(self, obj, depth=0):
+        key = next(iter(obj))
+        if "_internal" in obj[key]:
+            rels = [
+                relation.key for relation in self.schemas.relations
+            ] + self.nested_fields
+            rels.remove(key)
+            return delete_keys(obj, rels)
+        else:
+            return delete_keys(obj, self.nested_fields)
 
     def create(self, request):
         try:
@@ -137,8 +160,9 @@ class MarshmallowViewSet(viewsets.ViewSet):
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
         res = self._extract_elements(root_obj, self.schemas.relations)
-        ord = self._get_order(res, 3)
+        flat = [self._flatten(i) for i in res]
         pdb.set_trace()
+        ord = [self._get_order(res, i) for i in [5, 4, 3, 2, 1, 0]]
         return Response({"message": "accepted"})
         # return self._process(root_obj["property"])
 
@@ -188,7 +212,8 @@ class SchemaContainer:
         ]:
             wrapped_schema = self._gen_schema(view, kwargs)
             self.__setattr__(view, wrapped_schema())
-        self.relations = kwargs["relations"] if "relations" in kwargs else []
-
-    def relation(key):
-        return next((x for x in _relations if x.key == key), None)
+        self.relations = []
+        if "relations" in kwargs:
+            for idx, relation in enumerate(kwargs["relations"]):
+                relation.order = idx
+                self.relations.append(relation)
