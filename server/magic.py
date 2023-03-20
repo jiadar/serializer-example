@@ -115,8 +115,7 @@ class MarshmallowViewSet(viewsets.ViewSet):
                 if relation.key in item:
                     if "_relation" not in item[relation.key]:
                         item[relation.key]["_relation"] = {}
-                    internal = item[relation.key]["_relation"]
-                    internal["relation"] = relation
+                    item[relation.key]["_relation"] = relation
 
         return result
 
@@ -125,13 +124,14 @@ class MarshmallowViewSet(viewsets.ViewSet):
     # need to get property by itself
     def _get_order(self, obj_list, depth=0):
         res = []
-        if depth == 0:
-            for obj in obj_list:
-                for key in obj.keys():
-                    if "_relation" not in obj[key]:
-                        res.append(obj)
-
-        pdb.set_trace()
+        rels = {r.key: r.order for r in self.schemas.relations}
+        for obj in obj_list:
+            for key in obj.keys():
+                # Zero depth should not have relations
+                if "_relation" not in obj[key] and depth == 0:
+                    res.append(obj)
+                if "_relation" in obj[key] and depth == obj[key]["_relation"].order:
+                    res.append(obj)
         return res
 
     def _flatten(self, obj, depth=0):
@@ -152,7 +152,9 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return Response({"message": f"Deserialization error: {e}"})
         res = self._extract_elements(root_obj, self.schemas.relations)
         flat = [self._flatten(i) for i in res]
-        ord = [self._get_order(flat, i) for i in range(0, len(self.schemas.relations))]
+        ord = [
+            self._get_order(flat, i) for i in range(0, len(self.schemas.relations) + 1)
+        ]
         pdb.set_trace()
         ord = [self._get_order(res, i) for i in [5, 4, 3, 2, 1, 0]]
         return Response({"message": "accepted"})
@@ -173,6 +175,13 @@ class Relation:
         else:
             # todo - calculate from django model
             self.many = None
+        self.order = kwargs["order"] if "order" in kwargs else 0
+
+    def __repr__(self):
+        return f"key={self.key}, order={self.order}, many={self.many}"
+
+    def set_order(self, order):
+        self.order = order
 
 
 class SchemaContainer:
@@ -207,5 +216,5 @@ class SchemaContainer:
         self.relations = []
         if "relations" in kwargs:
             for idx, relation in enumerate(kwargs["relations"]):
-                relation.order = idx
+                relation.set_order(idx + 1)
                 self.relations.append(relation)
