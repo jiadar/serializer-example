@@ -150,12 +150,10 @@ class PropertyViewSet(magic.MarshmallowViewSet):
 
     # An ordered list of how to commit the relations to the database
     relations = [
-        magic.Relation(
-            "inspection_item", model=InspectionItem, related_field="inspection"
-        ),
-        magic.Relation("inspection", model=Inspection, related_field="property"),
-        magic.Relation("furniture", model=Furniture, related_field="property"),
-        magic.Relation("vehicle", model=Vehicle, related_field="vehicles", many=True),
+        magic.Relation("furniture", model=Furniture, root=Property),
+        magic.Relation("vehicle", model=Vehicle, root=Property, many=True),
+        magic.Relation("inspection", model=Inspection, root=Property),
+        magic.Relation("inspection_item", model=InspectionItem, root=Inspection),
     ]
 
     schemas = magic.SchemaContainer(

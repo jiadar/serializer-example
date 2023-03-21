@@ -147,16 +147,34 @@ class MarshmallowViewSet(viewsets.ViewSet):
 
     def create(self, request):
         try:
-            root_obj = self.schemas.create.load(request.data)
+            root_dict = self.schemas.create.load(request.data)
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
-        res = self._extract_elements(root_obj, self.schemas.relations)
+        res = self._extract_elements(root_dict, self.schemas.relations)
         flat = [self._flatten(i) for i in res]
         ord = [
             self._get_order(flat, i) for i in range(0, len(self.schemas.relations) + 1)
         ]
-        pdb.set_trace()
-        ord = [self._get_order(res, i) for i in [5, 4, 3, 2, 1, 0]]
+        # needs try/except
+        obj_dict = ord.pop(0)[0][self.root_key]
+        root_obj = self.model(**obj_dict)
+        root_obj.save()
+        for lst in ord:
+            key = next(iter(lst[0]))
+            model = lst[0][key]["_relation"].model
+            related_field = lst[0][key]["_relation"].root
+            for item in lst:
+                del item[key]["_relation"]
+            raw_dict = [item[key] for item in lst]
+            objs = [model(**item) for item in raw_dict]
+            for obj in objs:
+                if self.model == related_field:
+                    print(f"Setting {self.root_key} on {key}")
+                    obj.__setattr__(self.root_key, root_obj)
+                else:
+                    print(f"Setting fk on {key}")
+                    pdb.set_trace()
+                obj.save()
         return Response({"message": "accepted"})
         # return self._process(root_obj["property"])
 
@@ -165,11 +183,11 @@ class Relation:
     def __init__(self, key, **kwargs):
         self.key = key
         self.model = kwargs["model"] if "model" in kwargs else key.capitalize()
-        if "related_field" in kwargs:
-            self.related_field = kwargs["related_field"]
+        if "root" in kwargs:
+            self.root = kwargs["root"]
         else:
             # todo - calculate from django model
-            self.related_field = None
+            self.root = None
         if "many" in kwargs:
             self.many = kwargs["many"]
         else:
