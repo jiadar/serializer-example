@@ -82,19 +82,6 @@ class Node:
             "related": self.related,
         }
 
-    def full_dict(self):
-        return {
-            "key": self.key,
-            "model": self.model,
-            "schema": self.schema,
-            "nested_fields": self.nested_fields,
-            "parent": self.parent,
-            "children": self.children,
-            "related": self.related,
-            "raw": self.raw,
-            "obj": self.obj,
-        }
-
     def set_parent(self, parent):
         self.parent = parent
 
@@ -102,51 +89,35 @@ class Node:
         self.children.append(child)
 
 
+def add_node(parent, rel):
+    key = next(iter(rel))
+    sch = parent.schema.fields[key].schema
+    if type(rel[key]) == list:
+        for item in rel[key]:
+            child = Node(key, sch, item)
+            child.set_parent(parent)
+            parent.add_child(child)
+    else:
+        child = Node(key, sch, rel)
+        child.set_parent(parent)
+        parent.add_child(child)
+
+
 class MarshmallowViewSet(viewsets.ViewSet):
     def create_objs(self, root_dict):
         root = Node("property", self.schemas.create, root_dict)
 
         for rel in root.related:
-            key = next(iter(rel))
-            sch = self.schemas.create.fields[key].schema
-            if type(rel[key]) == list:
-                for item in rel[key]:
-                    child = Node(key, sch, item)
-                    child.set_parent(root)
-                    root.add_child(child)
-            else:
-                child = Node(key, sch, rel)
-                child.set_parent(root)
-                root.add_child(child)
+            add_node(root, rel)
 
         for intermediate in root.children:
             for rel in intermediate.related:
-                key = next(iter(rel))
-                sch = intermediate.schema.fields[key].schema
-                if type(rel[key]) == list:
-                    for item in rel[key]:
-                        child = Node(key, sch, item)
-                        child.set_parent(intermediate)
-                        intermediate.add_child(child)
-                else:
-                    child = Node(key, sch, rel)
-                    child.set_parent(intermediate)
-                    intermediate.add_child(child)
+                add_node(intermediate, rel)
 
         for intermediate in root.children:
             for final in intermediate.children:
                 for rel in final.related:
-                    key = next(iter(rel))
-                    sch = final.schema.fields[key].schema
-                    if type(rel[key]) == list:
-                        for item in rel[key]:
-                            child = Node(key, sch, item)
-                            child.set_parent(final)
-                            final.add_child(child)
-                    else:
-                        child = Node(key, sch, rel)
-                        child.set_parent(final)
-                        final.add_child(child)
+                    add_node(final, rel)
 
         pdb.set_trace()
 
