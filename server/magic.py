@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from django.db import Error as DatabaseError
 from django.db.models.fields.related_descriptors import (
     ForwardManyToOneDescriptor, ManyToManyDescriptor)
+from inflector import Inflector
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import fields
 from marshmallow.exceptions import \
@@ -60,12 +61,11 @@ class Node:
         self.model = schema.model
         self.schema = schema
         self.raw = raw
-        self.nested_fields = {}
         self.parent = None
         self.children = []
         self.related = []
-        self.obj = {}
-        self.pk = None
+        self.pojo = {}  # Dictionary processed by marshmallow
+        self.obj = None  # Django ORM object
         self.nested_fields = [
             k for k, v in self.schema.fields.items() if type(v) == fields.Nested
         ]
@@ -74,7 +74,7 @@ class Node:
             if k in self.nested_fields:
                 self.related.append({k: v})
             else:
-                self.obj[k] = v
+                self.pojo[k] = v
 
     def __repr__(self):
         return f"<Node {self.key}>"
@@ -82,18 +82,20 @@ class Node:
     def dict(self):
         return {
             "key": self.key,
-            "pk": self.pk,
             "model": self.model,
             "schema": self.schema,
             "nested_fields": self.nested_fields,
             "parent": self.parent,
             "children": self.children,
+            "pojo": self.pojo,
             "obj": self.obj,
             "related": self.related,
         }
 
     def set_parent(self, parent):
         self.parent = parent
+        if self.parent and self.isManyToOne(self.parent.key):
+            self.key = Inflector().singularize(self.key)
 
     def add_child(self, child):
         self.children.append(child)
@@ -146,19 +148,20 @@ class Node:
             Node.create_tree(child)
         return cur
 
-    def commit(self, parent_obj):
-        obj = self.model(**self.obj)
+    def commit(self):
+        self.obj = self.model(**self.pojo)
         if self.isManyToMany():
             print(f"Adding many to many relationship {self.key} to {self.parent}")
-            save_to_database(obj)
-            parent_obj.__getattribute__(self.key).add(obj)
+            save_to_database(self.obj)
+            self.parent.obj.__getattribute__(self.key).add(self.obj)
         elif self.isManyToOne(self.parent.key):
             print(f"Adding one to many relationship {self.key} to {self.parent}")
-            obj.__setattr__(self.parent.key, parent_obj)
+            self.obj.__setattr__(self.parent.key, self.parent.obj)
         else:
             print(
                 f"Could not determine related descriptor from {self.key} to {self.parent}"
             )
+            pdb.set_trace()
 
 
 class MarshmallowViewSet(viewsets.ViewSet):
@@ -180,23 +183,31 @@ class MarshmallowViewSet(viewsets.ViewSet):
         leaves = root.leaves()
 
         try:
-            root_obj = root.model(**root.obj)
+            root.obj = root.model(**root.pojo)
         except DjangoValidationError as e:
             return Response({"message": f"Validation error: {e}"})
 
         try:
-            root_obj.save()
-            root.pk = root_obj.pk
+            root.obj.save()
         except DatabaseError as e:
             return Response({"message": f"Database error saving primary object: {e}"})
 
         for child in root.children:
-            child.commit(root_obj)
+            child.commit()
 
-        for children in [c.children for c in root.children]:
+        intermediate = [c.children for c in root.children]
+        for children in intermediate:
             for child in children:
                 print(f"Processing {child}...")
-                pdb.set_trace()
+                child.commit()
+
+        final = [[c.children for c in lst] for lst in intermediate]
+        for lst in final:
+            for children in lst:
+                for child in children:
+                    print(f"Processing {child}...")
+                    child.commit()
+                    pdb.set_trace()
 
         return Response({"message": "accepted"})
 

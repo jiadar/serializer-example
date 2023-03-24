@@ -10,6 +10,9 @@ def clean_database():
         "sqlite3 /Users/javin/work/serializer-example/server/db.sqlite3 < /Users/javin/work/serializer-example/server/clean-database.sh"
     )
 
+    # should get this to run even if there are errors, wrap it somehow
+    #
+
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
