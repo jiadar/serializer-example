@@ -7,6 +7,8 @@ from pprint import pprint as pp
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.paginator import Paginator
 from django.db import Error as DatabaseError
+from django.db.models.fields.related_descriptors import (
+    ForwardManyToOneDescriptor, ManyToManyDescriptor)
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import fields
 from marshmallow.exceptions import \
@@ -45,6 +47,13 @@ def paginated_result(schema, paginator, page_number):
     return result
 
 
+def save_to_database(obj):
+    try:
+        obj.save()
+    except DatabaseError as e:
+        return Response({"message": f"Database error saving objects: {e}"})
+
+
 class Node:
     def __init__(self, key, schema, raw):
         self.key = key
@@ -56,7 +65,7 @@ class Node:
         self.children = []
         self.related = []
         self.obj = {}
-
+        self.pk = None
         self.nested_fields = [
             k for k, v in self.schema.fields.items() if type(v) == fields.Nested
         ]
@@ -73,6 +82,7 @@ class Node:
     def dict(self):
         return {
             "key": self.key,
+            "pk": self.pk,
             "model": self.model,
             "schema": self.schema,
             "nested_fields": self.nested_fields,
@@ -88,39 +98,70 @@ class Node:
     def add_child(self, child):
         self.children.append(child)
 
+    def isManyToMany(self):
+        return (
+            self.parent
+            and self.parent.model
+            and self.key in self.parent.model.__dict__
+            and type(getattr(self.parent.model, self.key)) == ManyToManyDescriptor
+        )
 
-def add_node(parent, rel):
-    key = next(iter(rel))
-    sch = parent.schema.fields[key].schema
-    if type(rel[key]) == list:
-        for item in rel[key]:
-            child = Node(key, sch, item)
+    def isManyToOne(self, key):
+        return (
+            self.model
+            and key in self.model.__dict__
+            and type(getattr(self.model, key)) == ForwardManyToOneDescriptor
+        )
+
+    @staticmethod
+    def _get_leaves(cur, res):
+        if len(cur.children) == 0:
+            res.append(cur)
+        for child in cur.children:
+            Node._get_leaves(child, res)
+        return res
+
+    def leaves(self):
+        return Node._get_leaves(self, [])
+
+    @staticmethod
+    def add_node(parent, rel):
+        key = next(iter(rel))
+        sch = parent.schema.fields[key].schema
+        if type(rel[key]) == list:
+            for item in rel[key]:
+                child = Node(key, sch, item)
+                child.set_parent(parent)
+                parent.add_child(child)
+        else:
+            child = Node(key, sch, rel)
             child.set_parent(parent)
             parent.add_child(child)
-    else:
-        child = Node(key, sch, rel)
-        child.set_parent(parent)
-        parent.add_child(child)
+
+    @staticmethod
+    def create_tree(cur):
+        for rel in cur.related:
+            Node.add_node(cur, rel)
+        for child in cur.children:
+            Node.create_tree(child)
+        return cur
+
+    def commit(self, parent_obj):
+        obj = self.model(**self.obj)
+        if self.isManyToMany():
+            print(f"Adding many to many relationship {self.key} to {self.parent}")
+            save_to_database(obj)
+            parent_obj.__getattribute__(self.key).add(obj)
+        elif self.isManyToOne(self.parent.key):
+            print(f"Adding one to many relationship {self.key} to {self.parent}")
+            obj.__setattr__(self.parent.key, parent_obj)
+        else:
+            print(
+                f"Could not determine related descriptor from {self.key} to {self.parent}"
+            )
 
 
 class MarshmallowViewSet(viewsets.ViewSet):
-    def create_objs(self, root_dict):
-        root = Node("property", self.schemas.create, root_dict)
-
-        for rel in root.related:
-            add_node(root, rel)
-
-        for intermediate in root.children:
-            for rel in intermediate.related:
-                add_node(intermediate, rel)
-
-        for intermediate in root.children:
-            for final in intermediate.children:
-                for rel in final.related:
-                    add_node(final, rel)
-
-        pdb.set_trace()
-
     def list(self, request):
         schema = self.schemas.list
         queryset = self.model.objects.all().order_by(self.model.ORDER_BY)
@@ -130,55 +171,34 @@ class MarshmallowViewSet(viewsets.ViewSet):
             )
         )
 
-    def _process(self, root_obj):
-        children = []
-        for relation in self.schemas.relations:
-            if relation.key in root_obj:
-                items = (
-                    root_obj.pop(relation.key)
-                    if isinstance(root_obj[relation.key], list)
-                    else [root_obj.pop(relation.key)]
-                )
-                children.extend([item | {"_relation": relation} for item in items])
-
-        # Now try to create the *root* object first. We need the root object created
-        # in order to add dependent objects.
-        try:
-            root_obj = self.model(**root_obj)
-        except DjangoValidationError as e:
-            return Response({"message": f"Validation error: {e}"})
-
-        # Try to save the root object to the database
-        try:
-            root_obj.save()
-        except DatabaseError as e:
-            return Response({"message": f"Database error saving primary object: {e}"})
-
-        # Attach the child objects to the root object. If the object is a 1:many we attach
-        # the root object onto the child object, then we save the child object.
-        # If it's a many:many, we attach the possibly many objects to the root object
-        # after saving the child object.
-        try:
-            for child in children:
-                relation = child.pop("_relation")
-                child_obj = relation.model(**child)
-                _process(child_obj)
-                if not relation.many:
-                    child_obj.__setattr__(relation.related_field, root_obj)
-                child_obj.save()
-                if relation.many:
-                    root_obj.__getattribute__(relation.related_field).add(child_obj)
-        except DatabaseError as e:
-            return Response({"message": f"Database error saving related objects: {e}"})
-
-        return Response({"message": "accepted"})
-
     def create(self, request):
         try:
             root_dict = self.schemas.create.load(request.data)
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
-        self.create_objs(root_dict)
+        root = Node.create_tree(Node("property", self.schemas.create, root_dict))
+        leaves = root.leaves()
+
+        try:
+            root_obj = root.model(**root.obj)
+        except DjangoValidationError as e:
+            return Response({"message": f"Validation error: {e}"})
+
+        try:
+            root_obj.save()
+            root.pk = root_obj.pk
+        except DatabaseError as e:
+            return Response({"message": f"Database error saving primary object: {e}"})
+
+        for child in root.children:
+            child.commit(root_obj)
+
+        for children in [c.children for c in root.children]:
+            for child in children:
+                print(f"Processing {child}...")
+                pdb.set_trace()
+
+        return Response({"message": "accepted"})
 
 
 class Relation:
@@ -188,12 +208,10 @@ class Relation:
         if "root" in kwargs:
             self.root = kwargs["root"]
         else:
-            # todo - calculate from django model
             self.root = None
         if "many" in kwargs:
             self.many = kwargs["many"]
         else:
-            # todo - calculate from django model
             self.many = None
         self.order = kwargs["order"] if "order" in kwargs else 0
 
