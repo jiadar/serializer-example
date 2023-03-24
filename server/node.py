@@ -9,13 +9,15 @@ from rest_framework.response import Response
 class Node:
     """A Node represents the full set of information necessary to handle nested json requests"""
 
-    def __init__(self, key, schema, raw):
+    def __init__(self, schema, raw, key=None):
         """Initialize a node by processing raw data with a schema into a python object
 
         Required Arguments:
-        key -- The generic name of this object (ie. user) that is used in mapping to other objects
         schema -- The marshmallow schema used to convert this object from json to python
         raw -- The raw data from the request
+
+        If not passed as kwarg, we calculate the key based off the name of the django model,
+        lowercasing it. This helps us bootstrap the root object.
 
         We calculate the nested fields one level deep by looking for nested fields on the
         marshmallow schema.
@@ -28,7 +30,7 @@ class Node:
         the data necessary to create the django object using the django model. We don't create
         the object now though, because we could have a foreign key constraint error.
         """
-        self.key = key
+        self.key = schema.model().__class__.__name__.lower() if key is None else key
         self.model = schema.model
         self.schema = schema
         self.raw = raw
@@ -66,11 +68,11 @@ class Node:
         sch = parent.schema.fields[key].schema
         if type(rel[key]) == list:
             for item in rel[key]:
-                child = Node(key, sch, item)
+                child = Node(sch, item, key=key)
                 child.set_parent(parent)
                 parent.add_child(child)
         else:
-            child = Node(key, sch, rel)
+            child = Node(sch, rel, key=key)
             child.set_parent(parent)
             parent.add_child(child)
 

@@ -41,5 +41,5 @@ class MarshmallowViewSet(viewsets.ViewSet):
 
     def create(self, request):
         root_dict = self.validate(request.data)
-        Node.create_tree(Node("property", self.schemas.create, root_dict)).commit()
+        Node.create_tree(Node(self.schemas.create, root_dict)).commit()
         return Response({"message": "accepted"})
