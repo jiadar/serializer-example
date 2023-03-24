@@ -1,21 +1,16 @@
-import pdb
-
 import magic
-from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import Error as DatabaseError
 from marshmallow import fields
-from marshmallow.exceptions import \
-    ValidationError as MarshmallowValidationError
-from rest_framework.response import Response
+from marshmallow_viewset import MarshmallowViewSet
+from schema_container import SchemaContainer
 
 from .models import (Detail, Furniture, Inspection, InspectionItem, Property,
                      User, Vehicle)
 
 
-class UserViewSet(magic.MarshmallowViewSet):
+class UserViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(User)
 
-    class UserDefaultSchema(schema_cls):
+    class DefaultSchema(schema_cls):
         user_id = fields.UUID()
         email = fields.Email()
         phone = fields.String()
@@ -25,26 +20,26 @@ class UserViewSet(magic.MarshmallowViewSet):
         state = fields.String()
         zip = fields.Number()
 
-    schemas = magic.SchemaContainer(UserDefaultSchema)
+    schemas = SchemaContainer(DefaultSchema)
 
 
-class FurnitureViewSet(magic.MarshmallowViewSet):
+class FurnitureViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Furniture)
 
-    class FurnitureDefaultSchema(schema_cls):
+    class DefaultSchema(schema_cls):
         furniture_id = fields.UUID()
         description = fields.String()
         condition = fields.Number()
         inservice_date = fields.Date()
         expected_life = fields.Number()
 
-    schemas = magic.SchemaContainer(FurnitureDefaultSchema)
+    schemas = SchemaContainer(DefaultSchema)
 
 
-class VehicleViewSet(magic.MarshmallowViewSet):
+class VehicleViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Vehicle)
 
-    class VehicleDefaultSchema(schema_cls):
+    class DefaultSchema(schema_cls):
         vehicle_id = fields.UUID()
         make = fields.String()
         model = fields.String()
@@ -52,58 +47,56 @@ class VehicleViewSet(magic.MarshmallowViewSet):
         description = fields.String()
         last_maintenance = fields.Date()
 
-    schemas = magic.SchemaContainer(VehicleDefaultSchema)
+    schemas = SchemaContainer(DefaultSchema)
 
 
-class DetailViewSet(magic.MarshmallowViewSet):
+class DetailViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Detail)
 
-    class DetailDefaultSchema(schema_cls):
+    class DefaultSchema(schema_cls):
         detail_id = fields.UUID()
         description = fields.String()
 
-    schemas = magic.SchemaContainer(DetailDefaultSchema)
+    schemas = SchemaContainer(DefaultSchema)
 
 
-class InspectionItemViewSet(magic.MarshmallowViewSet):
+class InspectionItemViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(InspectionItem)
 
-    class InspectionItemDefaultSchema(schema_cls):
+    class DefaultSchema(schema_cls):
         inspection_item_id = fields.UUID()
         description = fields.String()
-        details = fields.Nested(DetailViewSet.DetailDefaultSchema, many=True)
+        details = fields.Nested(DetailViewSet.DefaultSchema, many=True)
 
-    schemas = magic.SchemaContainer(InspectionItemDefaultSchema)
+    schemas = SchemaContainer(DefaultSchema)
 
 
-class InspectionViewSet(magic.MarshmallowViewSet):
+class InspectionViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Inspection)
 
-    class InspectionDefaultSchema(schema_cls):
+    class DefaultSchema(schema_cls):
         inspection_id = fields.UUID()
         inspector = fields.UUID()
         inspection_date = fields.Date()
         findings = fields.String()
 
-    class InspectionCreateSchema(schema_cls):
+    class CreateSchema(schema_cls):
         inspection_id = fields.UUID()
         inspector_id = fields.UUID()
         inspection_date = fields.Date()
         findings = fields.String()
-        inspection_items = fields.Nested(
-            InspectionItemViewSet.InspectionItemDefaultSchema, many=True
-        )
+        inspection_items = fields.Nested(InspectionItemViewSet.DefaultSchema, many=True)
 
-    schemas = magic.SchemaContainer(
-        InspectionDefaultSchema,
-        create=InspectionCreateSchema,
+    schemas = SchemaContainer(
+        DefaultSchema,
+        create=CreateSchema,
     )
 
 
-class PropertyViewSet(magic.MarshmallowViewSet):
+class PropertyViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Property)
 
-    class PropertyDefaultSchema(schema_cls):
+    class DefaultSchema(schema_cls):
         property_id = fields.UUID()
         owner_id = fields.UUID()
         address = fields.String()
@@ -113,7 +106,7 @@ class PropertyViewSet(magic.MarshmallowViewSet):
         description = fields.String()
         rent = fields.Number()
 
-    class PropertyCreateSchema(schema_cls):
+    class CreateSchema(schema_cls):
         property_id = fields.UUID()
         owner_id = fields.UUID()
         address = fields.String()
@@ -122,13 +115,11 @@ class PropertyViewSet(magic.MarshmallowViewSet):
         zip = fields.Number()
         description = fields.String()
         rent = fields.Number()
-        inspections = fields.Nested(InspectionViewSet.InspectionCreateSchema, many=True)
-        furniture_items = fields.Nested(
-            FurnitureViewSet.FurnitureDefaultSchema, many=True
-        )
-        vehicles = fields.Nested(VehicleViewSet.VehicleDefaultSchema, many=True)
+        inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
+        furniture_items = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
+        vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
 
-    schemas = magic.SchemaContainer(
-        PropertyDefaultSchema,
-        create=PropertyCreateSchema,
+    schemas = SchemaContainer(
+        DefaultSchema,
+        create=CreateSchema,
     )

@@ -1,8 +1,6 @@
 import uuid
 
-import magic
 from django.db import models
-from marshmallow import Schema, fields
 
 
 class User(models.Model):
@@ -17,7 +15,6 @@ class User(models.Model):
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["email"]
-    ROOT_KEY = "user"
 
 
 class Inspection(models.Model):
