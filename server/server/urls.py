@@ -28,4 +28,5 @@ router.register(r"inspections", InspectionViewSet, "inspections")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
+    path("debug/", include("debug_toolbar.urls")),
 ]

@@ -49,6 +49,7 @@ def paginated_result(schema, paginator, page_number):
 
 
 def save_to_database(obj):
+    print(f"Saving {obj}...")
     try:
         obj.save()
     except DatabaseError as e:
@@ -150,21 +151,29 @@ class Node:
 
     def commit(self):
         self.obj = self.model(**self.pojo)
+        pdb.set_trace()
+        if not self.parent:
+            save_to_database(self.obj)
         if self.isManyToMany():
             print(f"Adding many to many relationship {self.key} to {self.parent}")
             save_to_database(self.obj)
             self.parent.obj.__getattribute__(self.key).add(self.obj)
-        elif self.isManyToOne(self.parent.key):
-            print(f"Adding one to many relationship {self.key} to {self.parent}")
+        if self.parent and self.isManyToOne(self.parent.key):
+            print(f"Adding foreign key from {self.key} to {self.parent}")
             self.obj.__setattr__(self.parent.key, self.parent.obj)
-        else:
-            print(
-                f"Could not determine related descriptor from {self.key} to {self.parent}"
-            )
-            pdb.set_trace()
+            save_to_database(self.obj)
+        if len(self.children) > 0:
+            [child.commit() for child in self.children]
 
 
 class MarshmallowViewSet(viewsets.ViewSet):
+    def validate(self, json):
+        try:
+            root_dict = self.schemas.create.load(json)
+        except MarshmallowValidationError as e:
+            return Response({"message": f"Deserialization error: {e}"})
+        return root_dict
+
     def list(self, request):
         schema = self.schemas.list
         queryset = self.model.objects.all().order_by(self.model.ORDER_BY)
@@ -175,39 +184,36 @@ class MarshmallowViewSet(viewsets.ViewSet):
         )
 
     def create(self, request):
-        try:
-            root_dict = self.schemas.create.load(request.data)
-        except MarshmallowValidationError as e:
-            return Response({"message": f"Deserialization error: {e}"})
+        root_dict = self.validate(request.data)
         root = Node.create_tree(Node("property", self.schemas.create, root_dict))
-        leaves = root.leaves()
+        root.commit()
+        pdb.set_trace()
+        # try:
+        #     root.obj = root.model(**root.pojo)
+        # except DjangoValidationError as e:
+        #     return Response({"message": f"Validation error: {e}"})
 
-        try:
-            root.obj = root.model(**root.pojo)
-        except DjangoValidationError as e:
-            return Response({"message": f"Validation error: {e}"})
+        # try:
+        #     root.obj.save()
+        # except DatabaseError as e:
+        #     return Response({"message": f"Database error saving primary object: {e}"})
 
-        try:
-            root.obj.save()
-        except DatabaseError as e:
-            return Response({"message": f"Database error saving primary object: {e}"})
+        # for child in root.children:
+        #     child.commit()
 
-        for child in root.children:
-            child.commit()
+        # intermediate = [c.children for c in root.children]
+        # for children in intermediate:
+        #     for child in children:
+        #         print(f"Processing {child}...")
+        #         child.commit()
 
-        intermediate = [c.children for c in root.children]
-        for children in intermediate:
-            for child in children:
-                print(f"Processing {child}...")
-                child.commit()
-
-        final = [[c.children for c in lst] for lst in intermediate]
-        for lst in final:
-            for children in lst:
-                for child in children:
-                    print(f"Processing {child}...")
-                    child.commit()
-                    pdb.set_trace()
+        # final = [[c.children for c in lst] for lst in intermediate]
+        # for lst in final:
+        #     for children in lst:
+        #         for child in children:
+        #             print(f"Processing {child}...")
+        #             child.commit()
+        #             pdb.set_trace()
 
         return Response({"message": "accepted"})
 
