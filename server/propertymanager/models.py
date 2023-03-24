@@ -28,7 +28,6 @@ class Inspection(models.Model):
     inspection_date = models.DateField(null=True, blank=True)
     findings = models.TextField()
     property = models.ForeignKey("Property", on_delete=models.CASCADE)
-    ROOT_KEY = "inspecton"
 
 
 class InspectionItem(models.Model):
@@ -37,7 +36,12 @@ class InspectionItem(models.Model):
     )
     inspection = models.ForeignKey("Inspection", on_delete=models.CASCADE)
     description = models.TextField()
-    ROOT_KEY = "inspection_item"
+
+
+class Detail(models.Model):
+    detail_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=True)
+    inspection_item = models.ForeignKey("InspectionItem", on_delete=models.CASCADE)
+    description = models.TextField()
 
 
 class Furniture(models.Model):
@@ -47,7 +51,6 @@ class Furniture(models.Model):
     inservice_date = models.DateField(null=True, blank=True)
     expected_life = models.IntegerField(null=True, blank=True)
     property = models.ForeignKey("Property", on_delete=models.CASCADE)
-    ROOT_KEY = "furniture"
 
 
 class Vehicle(models.Model):
@@ -58,7 +61,6 @@ class Vehicle(models.Model):
     description = models.TextField(null=True, blank=True)
     last_maintenance = models.DateField(null=True, blank=True)
     properties = models.ManyToManyField("Property")
-    ROOT_KEY = "vehicle"
 
 
 class Property(models.Model):
@@ -71,5 +73,3 @@ class Property(models.Model):
     description = models.TextField(blank=True)
     rent = models.FloatField(blank=True)
     vehicles = models.ManyToManyField(Vehicle)
-
-    ROOT_KEY = "property"

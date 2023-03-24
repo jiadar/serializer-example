@@ -45,7 +45,111 @@ def paginated_result(schema, paginator, page_number):
     return result
 
 
+class Node:
+    def __init__(self, key, schema, raw):
+        self.key = key
+        self.model = schema.model
+        self.schema = schema
+        self.raw = raw
+        self.nested_fields = {}
+        self.parent = None
+        self.children = []
+        self.related = []
+        self.obj = {}
+
+        self.nested_fields = [
+            k for k, v in self.schema.fields.items() if type(v) == fields.Nested
+        ]
+
+        for k, v in self.raw.items():
+            if k in self.nested_fields:
+                self.related.append({k: v})
+            else:
+                self.obj[k] = v
+
+    def __repr__(self):
+        return f"<Node {self.key}>"
+
+    def dict(self):
+        return {
+            "key": self.key,
+            "model": self.model,
+            "schema": self.schema,
+            "nested_fields": self.nested_fields,
+            "parent": self.parent,
+            "children": self.children,
+            "obj": self.obj,
+            "related": self.related,
+        }
+
+    def full_dict(self):
+        return {
+            "key": self.key,
+            "model": self.model,
+            "schema": self.schema,
+            "nested_fields": self.nested_fields,
+            "parent": self.parent,
+            "children": self.children,
+            "related": self.related,
+            "raw": self.raw,
+            "obj": self.obj,
+        }
+
+    def set_parent(self, parent):
+        self.parent = parent
+
+    def add_child(self, child):
+        self.children.append(child)
+
+
 class MarshmallowViewSet(viewsets.ViewSet):
+    def create_objs(self, root_dict):
+        root = Node("property", self.schemas.create, root_dict)
+
+        for rel in root.related:
+            key = next(iter(rel))
+            sch = self.schemas.create.fields[key].schema
+            if type(rel[key]) == list:
+                for item in rel[key]:
+                    child = Node(key, sch, item)
+                    child.set_parent(root)
+                    root.add_child(child)
+            else:
+                child = Node(key, sch, rel)
+                child.set_parent(root)
+                root.add_child(child)
+
+        for intermediate in root.children:
+            for rel in intermediate.related:
+                key = next(iter(rel))
+                sch = intermediate.schema.fields[key].schema
+                if type(rel[key]) == list:
+                    for item in rel[key]:
+                        child = Node(key, sch, item)
+                        child.set_parent(intermediate)
+                        intermediate.add_child(child)
+                else:
+                    child = Node(key, sch, rel)
+                    child.set_parent(intermediate)
+                    intermediate.add_child(child)
+
+        for intermediate in root.children:
+            for final in intermediate.children:
+                for rel in final.related:
+                    key = next(iter(rel))
+                    sch = final.schema.fields[key].schema
+                    if type(rel[key]) == list:
+                        for item in rel[key]:
+                            child = Node(key, sch, item)
+                            child.set_parent(final)
+                            final.add_child(child)
+                    else:
+                        child = Node(key, sch, rel)
+                        child.set_parent(final)
+                        final.add_child(child)
+
+        pdb.set_trace()
+
     def list(self, request):
         schema = self.schemas.list
         queryset = self.model.objects.all().order_by(self.model.ORDER_BY)
@@ -98,148 +202,12 @@ class MarshmallowViewSet(viewsets.ViewSet):
 
         return Response({"message": "accepted"})
 
-    def _extract_elements(self, json, relations, result=[]):
-        root_key = "property"
-        relation_keys = [item.key for item in relations] + [root_key]
-        result = []
-
-        def _get_related(json):
-            if isinstance(json, dict):
-                for k, v in json.items():
-                    if k in relation_keys:
-                        result.append({k: v})
-                    _get_related(v)
-
-        _get_related(json)
-
-        for item in result:
-            for index, relation in enumerate(relations):
-                if relation.key in item:
-                    if "_relation" not in item[relation.key]:
-                        item[relation.key]["_relation"] = {}
-                    item[relation.key]["_relation"] = relation
-
-        return result
-
-    # not getting inspection item
-    # need to go through ordering for insertion and better spec that
-    # need to get property by itself
-    def _get_order(self, obj_list, depth=0):
-        res = []
-        rels = {r.key: r.order for r in self.schemas.relations}
-        for obj in obj_list:
-            for key in obj.keys():
-                # Zero depth should not have relations
-                if "_relation" not in obj[key] and depth == 0:
-                    res.append(obj)
-                if "_relation" in obj[key] and depth == obj[key]["_relation"].order:
-                    res.append(obj)
-        return res
-
-    def _flatten(self, obj, depth=0):
-        key = next(iter(obj))
-        if "_relation" in obj[key]:
-            rels = [
-                relation.key for relation in self.schemas.relations
-            ] + self.nested_fields
-            rels.remove(key)
-            return delete_keys(obj, rels)
-        else:
-            return delete_keys(obj, self.nested_fields)
-
-    def deal_with_nested_fields(self, root):
-        pass
-
-    def create_objs(self, root_dict):
-        # Get the first level object
-        nested_fields = [
-            k for k, v in self.schemas.create.fields.items() if type(v) == fields.Nested
-        ]
-        print(f"nested fields in deps_1: {nested_fields}")
-        pruned_1 = {}
-        deps_1 = []
-        for k, v in root_dict.items():
-            if k in nested_fields:
-                deps_1.append({k: v})
-            else:
-                pruned_1[k] = v
-
-        # there could be multiple second level objects
-        pruned_2 = {"_schemas": {}}
-        deps_2 = []
-
-        for dep in deps_1:
-            key = next(iter(dep))
-            flds = self.schemas.create.fields[key].schema.fields
-            nested_fields = [k for k, v in flds.items() if type(v) == fields.Nested]
-            print(f"nested fields in deps_2 {key}: {nested_fields}")
-            if len(nested_fields) == 0:
-                pruned_2.update(dep)
-                pruned_2["_schemas"][key] = self.schemas.create.fields[key].schema
-            else:
-                for i in dep[key]:
-                    for k, v in i.items():
-                        if k in nested_fields:
-                            deps_2.append({k: v})
-
-        pruned_3 = {"_schemas": {}}
-        deps_3 = []
-        for dep in deps_2:
-            key = next(iter(dep))
-            flds = pruned_2["_schemas"][key].fields
-            nested_fields = [k for k, v in flds.items() if type(v) == fields.Nested]
-            print(f"nested fields in deps_3 {key}: {nested_fields}")
-            if len(nested_fields) == 0:
-                pruned_3.update(dep)
-                pruned_3["_schemas"][key] = pruned_2["_schemas"][key]
-            else:
-                for i in dep[key]:
-                    for k, v in i.items():
-                        if k in nested_fields:
-                            deps_3.append({k: v})
-
-        pdb.set_trace()
-
     def create(self, request):
         try:
             root_dict = self.schemas.create.load(request.data)
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
         self.create_objs(root_dict)
-
-    def create1(self, request):
-        try:
-            root_dict = self.schemas.create.load(request.data)
-        except MarshmallowValidationError as e:
-            return Response({"message": f"Deserialization error: {e}"})
-        pdb.set_trace()
-        res = self._extract_elements(root_dict, self.schemas.relations)
-        flat = [self._flatten(i) for i in res]
-        ord = [
-            self._get_order(flat, i) for i in range(0, len(self.schemas.relations) + 1)
-        ]
-        # needs try/except
-        obj_dict = ord.pop(0)[0][self.root_key]
-        root_obj = self.model(**obj_dict)
-        root_obj.save()
-        for lst in ord:
-            key = next(iter(lst[0]))
-            model = lst[0][key]["_relation"].model
-            related_field = lst[0][key]["_relation"].root
-            for item in lst:
-                del item[key]["_relation"]
-            raw_dict = [item[key] for item in lst]
-            objs = [model(**item) for item in raw_dict]
-            for obj in objs:
-                if self.model == related_field:
-                    print(f"Setting {self.root_key} on {key}")
-                    obj.__setattr__(self.root_key, root_obj)
-                else:
-                    print(f"Setting fk on {key}")
-                    pdb.set_trace()
-                obj.save()
-        return Response({"message": "accepted"})
-        # return self._process(root_obj["property"])
 
 
 class Relation:

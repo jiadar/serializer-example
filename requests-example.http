@@ -348,7 +348,17 @@ Accept: application/json;charset=utf-8
             "inspection_items":[
                 {
                     "inspection_item_id":"b586c097-13d3-491f-b084-577ca5afe1ec",
-                    "description":"foo"
+                    "description":"foo",
+                    "details": [
+                        {
+                            "detail_id": "8c9e30f0-56f4-4dff-94f0-7ca886c8d5dd",
+                            "description": "abc"
+                        },
+                        {
+                            "detail_id": "8c9e30f0-56f4-4dff-94f0-7ca886c8d5de",
+                            "description": "xyz"
+                        }
+                    ]
                 },
                 {
                     "inspection_item_id":"b586c097-13d3-491f-b084-577ca5afe1ed",
