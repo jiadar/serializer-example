@@ -1,5 +1,3 @@
-
-# Post a property with some furnitures and vehicles (many:many) in a simpler form
 POST http://localhost:8000/api/properties/
 Content-Type: application/json
 Accept: application/json;charset=utf-8
@@ -95,7 +93,3 @@ Accept: application/json;charset=utf-8
         }
     ]
 }
-
-# Get the properties
-GET http://localhost:8000/api/properties/
-Accept: application/json;charset=utf-8
