@@ -3,7 +3,7 @@ import pdb
 import magic
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import Error as DatabaseError
-from marshmallow import Schema, fields
+from marshmallow import fields
 from marshmallow.exceptions import \
     ValidationError as MarshmallowValidationError
 from rest_framework.response import Response
@@ -13,9 +13,9 @@ from .models import (Furniture, Inspection, InspectionItem, Property, User,
 
 
 class UserViewSet(magic.MarshmallowViewSet):
-    model = User
+    schema_cls = magic.create_schema_cls(User)
 
-    class DefaultSchema(Schema):
+    class DefaultSchema(schema_cls):
         user_id = fields.UUID()
         email = fields.Email()
         phone = fields.String()
@@ -25,26 +25,26 @@ class UserViewSet(magic.MarshmallowViewSet):
         state = fields.String()
         zip = fields.Number()
 
-    schemas = magic.SchemaContainer("user", DefaultSchema)
+    schemas = magic.SchemaContainer(DefaultSchema)
 
 
 class FurnitureViewSet(magic.MarshmallowViewSet):
-    model = Furniture
+    schema_cls = magic.create_schema_cls(Furniture)
 
-    class DefaultSchema(Schema):
+    class DefaultSchema(schema_cls):
         furniture_id = fields.UUID()
         description = fields.String()
         condition = fields.Number()
         inservice_date = fields.Date()
         expected_life = fields.Number()
 
-    schemas = magic.SchemaContainer("furniture", DefaultSchema)
+    schemas = magic.SchemaContainer(DefaultSchema)
 
 
 class VehicleViewSet(magic.MarshmallowViewSet):
-    model = Vehicle
+    schema_cls = magic.create_schema_cls(Vehicle)
 
-    class DefaultSchema(Schema):
+    class DefaultSchema(schema_cls):
         vehicle_id = fields.UUID()
         make = fields.String()
         model = fields.String()
@@ -52,62 +52,45 @@ class VehicleViewSet(magic.MarshmallowViewSet):
         description = fields.String()
         last_maintenance = fields.Date()
 
-    schemas = magic.SchemaContainer("vehicle", DefaultSchema)
+    schemas = magic.SchemaContainer(DefaultSchema)
 
 
 class InspectionItemViewSet(magic.MarshmallowViewSet):
-    model = InspectionItem
+    schema_cls = magic.create_schema_cls(InspectionItem)
 
-    class DefaultSchema(Schema):
+    class DefaultSchema(schema_cls):
         inspection_item_id = fields.UUID()
         description = fields.String()
 
-    schemas = magic.SchemaContainer("inspection_item", DefaultSchema)
+    schemas = magic.SchemaContainer(DefaultSchema)
 
 
 class InspectionViewSet(magic.MarshmallowViewSet):
-    model = Inspection
-    nested_fields = ["inspection_items"]
+    schema_cls = magic.create_schema_cls(Inspection)
 
-    class DefaultSchema(Schema):
+    class DefaultSchema(schema_cls):
         inspection_id = fields.UUID()
         inspector = fields.UUID()
         inspection_date = fields.Date()
         findings = fields.String()
 
-    class CreateSchema(Schema):
+    class CreateSchema(schema_cls):
         inspection_id = fields.UUID()
         inspector_id = fields.UUID()
         inspection_date = fields.Date()
         findings = fields.String()
-        inspection_items = fields.Dict(
-            keys=fields.Str(),
-            values=fields.Dict(
-                keys=fields.Constant("inspection_item"),
-                values=fields.Nested(InspectionItemViewSet.DefaultSchema),
-            ),
-        )
-
-    relations = [
-        magic.Relation(
-            "inspection_items", model=InspectionItem, related_field="inspection"
-        ),
-    ]
+        inspection_items = fields.Nested(InspectionItemViewSet.DefaultSchema, many=True)
 
     schemas = magic.SchemaContainer(
-        "inspection",
         DefaultSchema,
         create=CreateSchema,
-        relations=relations,
     )
 
 
 class PropertyViewSet(magic.MarshmallowViewSet):
-    model = Property
-    root_key = "property"
-    nested_fields = ["inspections", "furniture_items", "vehicles", "inspection_items"]
+    schema_cls = magic.create_schema_cls(Property)
 
-    class DefaultSchema(Schema):
+    class DefaultSchema(schema_cls):
         property_id = fields.UUID()
         owner_id = fields.UUID()
         address = fields.String()
@@ -117,7 +100,7 @@ class PropertyViewSet(magic.MarshmallowViewSet):
         description = fields.String()
         rent = fields.Number()
 
-    class CreateSchema(Schema):
+    class CreateSchema(schema_cls):
         property_id = fields.UUID()
         owner_id = fields.UUID()
         address = fields.String()
@@ -126,39 +109,11 @@ class PropertyViewSet(magic.MarshmallowViewSet):
         zip = fields.Number()
         description = fields.String()
         rent = fields.Number()
-        inspections = fields.Dict(
-            keys=fields.Str(),
-            values=fields.Dict(
-                keys=fields.Constant("inspection"),
-                values=fields.Nested(InspectionViewSet.CreateSchema),
-            ),
-        )
-        furniture_items = fields.Dict(
-            keys=fields.Str(),
-            values=fields.Dict(
-                keys=fields.Constant("furniture"),
-                values=fields.Nested(FurnitureViewSet.DefaultSchema),
-            ),
-        )
-        vehicles = fields.Dict(
-            keys=fields.Str(),
-            values=fields.Dict(
-                keys=fields.Constant("vehicle"),
-                values=fields.Nested(VehicleViewSet.DefaultSchema),
-            ),
-        )
-
-    # An ordered list of how to commit the relations to the database
-    relations = [
-        magic.Relation("furniture", model=Furniture, root=Property),
-        magic.Relation("vehicle", model=Vehicle, root=Property, many=True),
-        magic.Relation("inspection", model=Inspection, root=Property),
-        magic.Relation("inspection_item", model=InspectionItem, root=Inspection),
-    ]
+        inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
+        furniture_items = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
+        vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
 
     schemas = magic.SchemaContainer(
-        "property",
         DefaultSchema,
         create=CreateSchema,
-        relations=relations,
     )

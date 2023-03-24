@@ -7,9 +7,11 @@ from pprint import pprint as pp
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.paginator import Paginator
 from django.db import Error as DatabaseError
-from marshmallow import Schema, fields
+from marshmallow import Schema as MarshmallowSchema
+from marshmallow import fields
 from marshmallow.exceptions import \
     ValidationError as MarshmallowValidationError
+from marshmallow.fields import Field
 from rest_framework import viewsets
 from rest_framework.response import Response
 
@@ -145,11 +147,72 @@ class MarshmallowViewSet(viewsets.ViewSet):
         else:
             return delete_keys(obj, self.nested_fields)
 
+    def deal_with_nested_fields(self, root):
+        pass
+
+    def create_objs(self, root_dict):
+        # Get the first level object
+        nested_fields = [
+            k for k, v in self.schemas.create.fields.items() if type(v) == fields.Nested
+        ]
+        print(f"nested fields in deps_1: {nested_fields}")
+        pruned_1 = {}
+        deps_1 = []
+        for k, v in root_dict.items():
+            if k in nested_fields:
+                deps_1.append({k: v})
+            else:
+                pruned_1[k] = v
+
+        # there could be multiple second level objects
+        pruned_2 = {"_schemas": {}}
+        deps_2 = []
+
+        for dep in deps_1:
+            key = next(iter(dep))
+            flds = self.schemas.create.fields[key].schema.fields
+            nested_fields = [k for k, v in flds.items() if type(v) == fields.Nested]
+            print(f"nested fields in deps_2 {key}: {nested_fields}")
+            if len(nested_fields) == 0:
+                pruned_2.update(dep)
+                pruned_2["_schemas"][key] = self.schemas.create.fields[key].schema
+            else:
+                for i in dep[key]:
+                    for k, v in i.items():
+                        if k in nested_fields:
+                            deps_2.append({k: v})
+
+        pruned_3 = {"_schemas": {}}
+        deps_3 = []
+        for dep in deps_2:
+            key = next(iter(dep))
+            flds = pruned_2["_schemas"][key].fields
+            nested_fields = [k for k, v in flds.items() if type(v) == fields.Nested]
+            print(f"nested fields in deps_3 {key}: {nested_fields}")
+            if len(nested_fields) == 0:
+                pruned_3.update(dep)
+                pruned_3["_schemas"][key] = pruned_2["_schemas"][key]
+            else:
+                for i in dep[key]:
+                    for k, v in i.items():
+                        if k in nested_fields:
+                            deps_3.append({k: v})
+
+        pdb.set_trace()
+
     def create(self, request):
         try:
             root_dict = self.schemas.create.load(request.data)
         except MarshmallowValidationError as e:
             return Response({"message": f"Deserialization error: {e}"})
+        self.create_objs(root_dict)
+
+    def create1(self, request):
+        try:
+            root_dict = self.schemas.create.load(request.data)
+        except MarshmallowValidationError as e:
+            return Response({"message": f"Deserialization error: {e}"})
+        pdb.set_trace()
         res = self._extract_elements(root_dict, self.schemas.relations)
         flat = [self._flatten(i) for i in res]
         ord = [
@@ -202,25 +265,16 @@ class Relation:
         self.order = order
 
 
+def create_schema_cls(model):
+    return type("MagicSchema", (MarshmallowSchema,), {"model": model})
+
+
 class SchemaContainer:
-    def _wrap(self, view, schema):
-        name = f"{self.root_key.capitalize()}{view.capitalize()}Schema".replace("_", "")
-        wrapped_schema = Schema.from_dict(
-            {self.root_key: fields.Nested(schema)},
-            name=name,
-        )
-        return wrapped_schema
-
     def _gen_schema(self, view, kwargs):
-        return (
-            self._wrap(view, kwargs[view])
-            if view in kwargs
-            else self._wrap(view, self.default)
-        )
+        return kwargs[view] if view in kwargs else self.default
 
-    def __init__(self, root_key, default, **kwargs):
-        self.root_key = root_key
-        self.default = self._wrap("default", default)
+    def __init__(self, default, **kwargs):
+        self.default = default
         for view in [
             "list",
             "create",
@@ -229,10 +283,17 @@ class SchemaContainer:
             "partial_update",
             "destroy",
         ]:
-            wrapped_schema = self._gen_schema(view, kwargs)
-            self.__setattr__(view, wrapped_schema())
+            sch_cls = self._gen_schema(view, kwargs)
+            self.__setattr__(view, sch_cls())
         self.relations = []
         if "relations" in kwargs:
             for idx, relation in enumerate(kwargs["relations"]):
                 relation.set_order(idx + 1)
                 self.relations.append(relation)
+
+
+def field_repr(self):
+    return "<fields.{ClassName}>".format(ClassName=self.__class__.__name__, self=self)
+
+
+Field().__class__.__repr__ = field_repr
