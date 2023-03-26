@@ -35,7 +35,12 @@ class ServiceMetaclass(type):
 
 
 class BaseService:
-    """Base class for services"""
+    """Base class for services
+
+    Takes the input to the service and validates it against the field definitions.
+    Returns errors if the fields don't validate. Modeled off Django's forms, with the
+    web stuff removed, as to be able to run in lib without importing anything from django.
+    """
 
     def __init__(self, data=None, deps=None):
         self.is_bound = data is not None
@@ -135,11 +140,6 @@ class BaseService:
                     self.cleaned_data[name] = value
             except ValidationError as e:
                 self.add_error(name, e)
-
-
-class NoneProvider:
-    # Generic provider that will respond to any method and return an error
-    pass
 
 
 class Service(BaseService, metaclass=ServiceMetaclass):

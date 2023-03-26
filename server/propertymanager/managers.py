@@ -1,10 +1,12 @@
 from django.db import models
 
 """Managers
+Managers should have ORM logic that operates on table level.
 
-While models should have ORM logic that operates on a row level, Managers should have the
-ORM logic that operates on the table level. If the logic applies to more than one model
-instance (queryset) then put it here.
+The manager is the thing that you get when you call Model.objects. It should deal with querysets.
+
+If you need to operate on the row level (on a single model instance), that should probably go
+in the model.If the logic applies to more than one model instance (queryset) then put it here.
 """
 
 

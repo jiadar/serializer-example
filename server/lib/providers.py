@@ -29,3 +29,8 @@ class MockSendgridProvider:
     def send_email(template, email):
         # return response that the 3rd party would return, but don't actually call out
         pass
+
+
+class NoneProvider:
+    # Generic provider that will respond to any method and return an error
+    pass
