@@ -23,7 +23,11 @@ Service = create_service_class(EmailProvider)
 class SendWelcomeEmail(Service):
     template = forms.CharField()
     email = forms.EmailField()
-    data = forms.MultiValueField()
+    link = forms.URLField()
 
     def action(self):
-        self._provider.send_email(self.template, self.email)
+        return self.provider.send_email(
+            self.cleaned_data["template"],
+            self.cleaned_data["email"],
+            {"link": self.cleaned_data["link"]},
+        )

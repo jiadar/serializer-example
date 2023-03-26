@@ -24,11 +24,18 @@ class StripeProvider:
         pass
 
 
-class MockSendgridProvider:
+class EmailProvider:
     @classmethod
-    def send_email(template, email):
-        # return response that the 3rd party would return, but don't actually call out
-        pass
+    def send_email(cls, template, email, data):
+        # call 3rd party service
+        return {"status": "ok"}
+
+
+class MockEmailProvider:
+    @classmethod
+    def send_email(cls, template, email, data):
+        # return response that the 3rd party api would return, but don't actually call out
+        return {"status": "ok"}
 
 
 class NoneProvider:
