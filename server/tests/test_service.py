@@ -5,7 +5,7 @@ from lib.services import email
 
 class EmailTestCase(TestCase):
     def test_email_service(self):
-        result = email.SendWelcomeEmail.exec(
+        instance = email.SendWelcomeEmail(
             {
                 "template": "4jfdginx235sdfg",
                 "email": "jiadar@gmail.com",
@@ -13,4 +13,4 @@ class EmailTestCase(TestCase):
             },
             provider=MockEmailProvider,
         )
-        self.assertEqual(result, {"status": "ok"})
+        self.assertEqual(instance.result, {"status": "ok"})

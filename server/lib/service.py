@@ -35,16 +35,12 @@ class Service(BaseService, metaclass=forms.DeclarativeFieldsMetaclass):
     to execute the action.
     """
 
-    def svc_clean(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         if not self.is_valid():
             raise ValidationError(self.errors, self.non_field_errrors())
-
-    @classmethod
-    def exec(cls, *args, **kwargs):
-        instance = cls(*args, **kwargs)
-        instance.svc_clean()
         with transaction.atomic():
-            return instance.action()
+            self.result = self.action()
 
     def action(self):
         raise NotImplementedError("Subclass must implement service action method")
