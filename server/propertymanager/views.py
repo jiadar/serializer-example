@@ -1,7 +1,7 @@
-import magic
+from lib import magic
+from lib.marshmallow_viewset import MarshmallowViewSet
+from lib.schema_container import SchemaContainer
 from marshmallow import fields
-from marshmallow_viewset import MarshmallowViewSet
-from schema_container import SchemaContainer
 
 from .models import (Detail, Furniture, Inspection, InspectionItem, Property,
                      User, Vehicle)

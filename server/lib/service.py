@@ -1,22 +1,6 @@
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.forms.utils import ErrorDict, ErrorList
-from marshmallow import Schema as MarshmallowSchema
-from marshmallow.fields import Field
-
-
-def create_schema_cls(model):
-    """Some magic to attach the Django ORM model to the marshmallow schema"""
-    return type("MagicSchema", (MarshmallowSchema,), {"model": model})
-
-
-def field_repr(self):
-    """Some magic to fix the fields repr to a sane, concise format
-
-    Not stricly necessary but nice for debugging. This will run when we import magic from views.
-    """
-    return "<fields.{ClassName}>".format(ClassName=self.__class__.__name__, self=self)
-
-
-Field().__class__.__repr__ = field_repr
 
 
 class ServiceMetaclass(type):
@@ -180,30 +164,9 @@ class Service(BaseService, metaclass=ServiceMetaclass):
             return self.action()
 
     def action(self):
-        raise NotImplementedError()
+        raise NotImplementedError("Subclass must implement service action method")
 
 
-class SendgridProvider:
-    @classmethod
-    def send_email(template, email):
-        # call 3rd party service
-        pass
-
-
-class StripeProvider:
-    @classmethod
-    def create_invoice(customer_id):
-        # call 3rd party service
-        pass
-
-    @classmethod
-    def add_invoice_lineitem(lineitem):
-        # call 3rd party service
-        pass
-
-
-class MockSendgridProvider:
-    @classmethod
-    def send_email(template, email):
-        # return response that the 3rd party would return, but don't actually call out
-        pass
+def create_service_class(provider):
+    """Wraps the service class with the provider"""
+    return type("Service", (Service,), {"DEFAULT_PROVIDER": provider})
