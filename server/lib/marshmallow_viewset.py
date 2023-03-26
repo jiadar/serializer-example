@@ -3,7 +3,7 @@ from marshmallow.exceptions import \
 from rest_framework import viewsets
 from rest_framework.response import Response
 
-from node import Node
+from lib.node import Node
 
 
 class MarshmallowViewSet(viewsets.ViewSet):
