@@ -7,7 +7,7 @@ from django.utils import autoreload
 
 def clean_database():
     os.system(
-        "PGPASSWORD=example psql -U example example -h 127.0.0.1 < /Users/javin/work/serializer-example/server/clean-database.sql"
+        "PGPASSWORD=example psql -U example example -h 127.0.0.1 < /Users/cody/Documents/GitHub/serializer-example/server/clean-database.sql"
     )
 
     # should get this to run even if there are errors, wrap it somehow

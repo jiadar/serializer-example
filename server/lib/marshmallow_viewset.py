@@ -30,7 +30,16 @@ class MarshmallowViewSet(viewsets.ViewSet):
         This should work similarly to create, where we will recursively trace the 'list' schema
         and build up the return data by generating querysets for the root and nested data.
         """
-        pass
+        print("in marshmallow viewset retreive")
+        # get object from request
+
+        # get object schema
+
+        # dump object to json by calling schema.dump(object)
+
+        # if object has nested fields, recursively call retreive on those fields and append to json
+
+        return Response({"message": "accepted"})
 
     def list(self, request):
         """TBD
@@ -42,4 +51,4 @@ class MarshmallowViewSet(viewsets.ViewSet):
     def create(self, request):
         root_dict = self.validate(request.data)
         Node.create_tree(Node(self.schemas.create, root_dict)).commit()
-        return Response({"message": "accepted"})
+        return Response(root_dict)
