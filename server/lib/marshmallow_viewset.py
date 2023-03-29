@@ -24,7 +24,7 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return Response({"message": f"Deserialization error: {e}"})
         return root_dict
 
-    def retreive(self, request):
+    def retrieve(self, request):
         """TBD
 
         This should work similarly to create, where we will recursively trace the 'list' schema

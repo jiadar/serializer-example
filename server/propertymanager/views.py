@@ -95,7 +95,6 @@ class InspectionViewSet(MarshmallowViewSet):
 
 class PropertyViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Property)
-
     class DefaultSchema(schema_cls):
         property_id = fields.UUID()
         owner_id = fields.UUID()
@@ -123,3 +122,6 @@ class PropertyViewSet(MarshmallowViewSet):
         DefaultSchema,
         create=CreateSchema,
     )
+
+    def retrieve(self, request, pk=None):
+        return super().retrieve(request)
