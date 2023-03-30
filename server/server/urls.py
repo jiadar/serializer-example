@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from propertymanager.views import (InspectionViewSet, PropertyViewSet,
-                                   UserViewSet)
+                                   UserViewSet, InspectionItemViewSet, DetailViewSet)
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -24,6 +24,8 @@ router = DefaultRouter()
 router.register(r"users", UserViewSet, "users")
 router.register(r"properties", PropertyViewSet, "properties")
 router.register(r"inspections", InspectionViewSet, "inspections")
+router.register(r"inspectionitems", InspectionItemViewSet, "inspectionitems")
+router.register(r"details", DetailViewSet, "details")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

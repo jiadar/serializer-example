@@ -1,7 +1,7 @@
 from lib import magic
 from lib.marshmallow_viewset import MarshmallowViewSet
 from lib.schema_container import SchemaContainer
-from marshmallow import fields
+from marshmallow import fields, Schema
 
 from .models import (Detail, Furniture, Inspection, InspectionItem, Property,
                      User, Vehicle)
@@ -50,6 +50,25 @@ class VehicleViewSet(MarshmallowViewSet):
     schemas = SchemaContainer(DefaultSchema)
 
 
+class InspectionItemViewSet(MarshmallowViewSet):
+    schema_cls = magic.create_schema_cls(InspectionItem)
+
+    class DefaultSchema(schema_cls):
+        inspection_item_id = fields.UUID()
+        description = fields.String()
+        # details = fields.List(fields.Nested(DetailViewSet.DetailSchema))
+
+    schemas = SchemaContainer(DefaultSchema)
+
+    class InspectionItemSchema(Schema):
+        inspection_item_id = fields.UUID()
+        description = fields.String()
+        # details = fields.List(fields.Nested(DetailViewSet.DetailSchema), many=True)
+
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
+
+
 class DetailViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Detail)
 
@@ -59,16 +78,13 @@ class DetailViewSet(MarshmallowViewSet):
 
     schemas = SchemaContainer(DefaultSchema)
 
-
-class InspectionItemViewSet(MarshmallowViewSet):
-    schema_cls = magic.create_schema_cls(InspectionItem)
-
-    class DefaultSchema(schema_cls):
-        inspection_item_id = fields.UUID()
+    class DetailSchema(Schema):
+        detail_id = fields.UUID()
         description = fields.String()
-        details = fields.Nested(DetailViewSet.DefaultSchema, many=True)
+        inspection_item = fields.Nested(InspectionItemViewSet.InspectionItemSchema)
 
-    schemas = SchemaContainer(DefaultSchema)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 
 class InspectionViewSet(MarshmallowViewSet):

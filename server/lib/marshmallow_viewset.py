@@ -30,16 +30,22 @@ class MarshmallowViewSet(viewsets.ViewSet):
         This should work similarly to create, where we will recursively trace the 'list' schema
         and build up the return data by generating querysets for the root and nested data.
         """
-        schema = self.schemas.retrieve
-        instance = schema.model.objects.get(pk=kwargs["pk"])
+        from propertymanager.views import DetailViewSet as dvs
+        from propertymanager.models import Detail
+        # from propertymanager.models import InspectionItem
+        # schema = self.schemas.retrieve
+        schema = dvs.DetailSchema()
+
+        instance = Detail.objects.get(pk=kwargs["pk"])
         json = schema.dump(instance)
-        items = instance.inspectionitem_set.all()
-        json["items"] = schema.dump(items, many=True)
-        # vehicles = property.vehicles.all()
-        # json["vehicles"] = schema.dump(vehicles, many=True)
-        # inspections = property.inspection_set.all()
-        # schema.dump(inspections,many=True)
+
+
         # import pdb; pdb.set_trace();
+        # vehicles = instance.vehicles.all()
+        # json["vehicles"] = schema.dump(vehicles, many=True)
+        # inspections = instance.inspection_set.all()
+        # schema.dump(inspections,many=True)
+        
         return Response(json)
 
     def list(self, request):
