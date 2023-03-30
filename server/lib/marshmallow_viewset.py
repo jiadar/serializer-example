@@ -2,7 +2,7 @@ from marshmallow.exceptions import \
     ValidationError as MarshmallowValidationError
 from rest_framework import viewsets
 from rest_framework.response import Response
-
+from pprint import pprint as pp
 from lib.node import Node
 
 
@@ -24,22 +24,23 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return Response({"message": f"Deserialization error: {e}"})
         return root_dict
 
-    def retrieve(self, request):
+    def retrieve(self, request, args, kwargs):
         """TBD
 
         This should work similarly to create, where we will recursively trace the 'list' schema
         and build up the return data by generating querysets for the root and nested data.
         """
-        print("in marshmallow viewset retreive")
-        # get object from request
-
-        # get object schema
-
-        # dump object to json by calling schema.dump(object)
-
-        # if object has nested fields, recursively call retreive on those fields and append to json
-
-        return Response({"message": "accepted"})
+        schema = self.schemas.retrieve
+        instance = schema.model.objects.get(pk=kwargs["pk"])
+        json = schema.dump(instance)
+        items = instance.inspectionitem_set.all()
+        json["items"] = schema.dump(items, many=True)
+        # vehicles = property.vehicles.all()
+        # json["vehicles"] = schema.dump(vehicles, many=True)
+        # inspections = property.inspection_set.all()
+        # schema.dump(inspections,many=True)
+        # import pdb; pdb.set_trace();
+        return Response(json)
 
     def list(self, request):
         """TBD

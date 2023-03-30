@@ -80,21 +80,26 @@ class InspectionViewSet(MarshmallowViewSet):
         inspection_date = fields.Date()
         findings = fields.String()
 
-    class CreateSchema(schema_cls):
+    class NestedSchema(schema_cls):
         inspection_id = fields.UUID()
         inspector_id = fields.UUID()
         inspection_date = fields.Date()
         findings = fields.String()
-        inspection_items = fields.Nested(InspectionItemViewSet.DefaultSchema, many=True)
+        inspection_items = fields.Nested(InspectionItemViewSet.DefaultSchema)
 
     schemas = SchemaContainer(
         DefaultSchema,
-        create=CreateSchema,
+        create=NestedSchema,
+        retrieve=NestedSchema,
     )
+
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 
 class PropertyViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Property)
+
     class DefaultSchema(schema_cls):
         property_id = fields.UUID()
         owner_id = fields.UUID()
@@ -105,7 +110,7 @@ class PropertyViewSet(MarshmallowViewSet):
         description = fields.String()
         rent = fields.Number()
 
-    class CreateSchema(schema_cls):
+    class NestedSchema(schema_cls):
         property_id = fields.UUID()
         owner_id = fields.UUID()
         address = fields.String()
@@ -114,14 +119,15 @@ class PropertyViewSet(MarshmallowViewSet):
         zip = fields.Number()
         description = fields.String()
         rent = fields.Number()
-        inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
+        inspections = fields.Nested(InspectionViewSet.NestedSchema, many=True)
         furniture_items = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
         vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
 
     schemas = SchemaContainer(
         DefaultSchema,
-        create=CreateSchema,
+        create=NestedSchema,
+        retrieve=NestedSchema,
     )
 
-    def retrieve(self, request, pk=None):
-        return super().retrieve(request)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
