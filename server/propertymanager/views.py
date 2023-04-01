@@ -50,25 +50,6 @@ class VehicleViewSet(MarshmallowViewSet):
     schemas = SchemaContainer(DefaultSchema)
 
 
-class InspectionItemViewSet(MarshmallowViewSet):
-    schema_cls = magic.create_schema_cls(InspectionItem)
-
-    class DefaultSchema(schema_cls):
-        inspection_item_id = fields.UUID()
-        description = fields.String()
-        # details = fields.List(fields.Nested(DetailViewSet.DetailSchema))
-
-    schemas = SchemaContainer(DefaultSchema)
-
-    class InspectionItemSchema(Schema):
-        inspection_item_id = fields.UUID()
-        description = fields.String()
-        # details = fields.List(fields.Nested(DetailViewSet.DetailSchema), many=True)
-
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, args, kwargs)
-
-
 class DetailViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Detail)
 
@@ -78,13 +59,16 @@ class DetailViewSet(MarshmallowViewSet):
 
     schemas = SchemaContainer(DefaultSchema)
 
-    class DetailSchema(Schema):
-        detail_id = fields.UUID()
-        description = fields.String()
-        inspection_item = fields.Nested(InspectionItemViewSet.InspectionItemSchema)
 
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, args, kwargs)
+class InspectionItemViewSet(MarshmallowViewSet):
+    schema_cls = magic.create_schema_cls(InspectionItem)
+
+    class DefaultSchema(schema_cls):
+        inspection_item_id = fields.UUID()
+        description = fields.String()
+        details = fields.Nested(DetailViewSet.DefaultSchema, many=True)
+
+    schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
 
 
 class InspectionViewSet(MarshmallowViewSet):
@@ -96,17 +80,17 @@ class InspectionViewSet(MarshmallowViewSet):
         inspection_date = fields.Date()
         findings = fields.String()
 
-    class NestedSchema(schema_cls):
+    class CreateSchema(schema_cls):
         inspection_id = fields.UUID()
         inspector_id = fields.UUID()
         inspection_date = fields.Date()
         findings = fields.String()
-        inspection_items = fields.Nested(InspectionItemViewSet.DefaultSchema)
+        inspection_items = fields.Nested(InspectionItemViewSet.DefaultSchema, many=True)
 
     schemas = SchemaContainer(
         DefaultSchema,
-        create=NestedSchema,
-        retrieve=NestedSchema,
+        create=CreateSchema,
+        retrieve=CreateSchema,
     )
 
     def retrieve(self, request, *args, **kwargs):
@@ -135,7 +119,7 @@ class PropertyViewSet(MarshmallowViewSet):
         zip = fields.Number()
         description = fields.String()
         rent = fields.Number()
-        inspections = fields.Nested(InspectionViewSet.NestedSchema, many=True)
+        inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
         furniture_items = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
         vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
 
