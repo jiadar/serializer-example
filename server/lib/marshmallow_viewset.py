@@ -30,17 +30,11 @@ class MarshmallowViewSet(viewsets.ViewSet):
         and build up the return data by generating querysets for the root and nested data.
         """
         from pprint import pprint as pp
-
         schema = self.schemas.retrieve
         instance = schema.model.objects.get(pk=kwargs["pk"])
+        # import pdb; pdb.set_trace();
         json = schema.dump(instance)
-
-
-        for field in instance.__dict__:
-            # print(field)
-            if str(instance.__dict__[field]) == kwargs["pk"]:
-                instance_key = field
-
+        
 
         # check for nested fields
         for key in schema.fields:
@@ -50,6 +44,11 @@ class MarshmallowViewSet(viewsets.ViewSet):
                 pk_key = key.replace("_", "")
                 #remove the s from the end of the key to get the pk key
                 pk_key = pk_key[:-1]
+
+                #special case for furnitureitem can be fixed later
+                if pk_key == "furnitureitem":
+                    pk_key = "furniture"
+                # import pdb; pdb.set_trace();
                 qs = instance.__getattribute__(f"{pk_key}_set").all()
                 json[key] = subschema.dump(qs)
 

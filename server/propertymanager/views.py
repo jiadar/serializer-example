@@ -1,7 +1,7 @@
 from lib import magic
 from lib.marshmallow_viewset import MarshmallowViewSet
 from lib.schema_container import SchemaContainer
-from marshmallow import fields, Schema
+from marshmallow import fields
 
 from .models import (Detail, Furniture, Inspection, InspectionItem, Property,
                      User, Vehicle)
@@ -33,8 +33,9 @@ class FurnitureViewSet(MarshmallowViewSet):
         inservice_date = fields.Date()
         expected_life = fields.Number()
 
-    schemas = SchemaContainer(DefaultSchema)
-
+    schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 class VehicleViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Vehicle)
@@ -47,8 +48,9 @@ class VehicleViewSet(MarshmallowViewSet):
         description = fields.String()
         last_maintenance = fields.Date()
 
-    schemas = SchemaContainer(DefaultSchema)
-
+    schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 class DetailViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Detail)
@@ -57,7 +59,10 @@ class DetailViewSet(MarshmallowViewSet):
         detail_id = fields.UUID()
         description = fields.String()
 
-    schemas = SchemaContainer(DefaultSchema)
+    schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
+
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 
 class InspectionItemViewSet(MarshmallowViewSet):
@@ -69,7 +74,8 @@ class InspectionItemViewSet(MarshmallowViewSet):
         details = fields.Nested(DetailViewSet.DefaultSchema, many=True)
 
     schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
-
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 class InspectionViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Inspection)
@@ -121,7 +127,7 @@ class PropertyViewSet(MarshmallowViewSet):
         rent = fields.Number()
         inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
         furniture_items = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
-        vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
+        # vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
 
     schemas = SchemaContainer(
         DefaultSchema,
