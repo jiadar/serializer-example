@@ -54,6 +54,12 @@ class MarshmallowViewSet(viewsets.ViewSet):
         instance = schema.model.objects.get(pk=kwargs["pk"])
         json = schema.dump(instance)
         self.dump_nested(schema, instance, json)
+
+        #hard coded vehicles for now
+        from propertymanager.views import VehicleViewSet as vvs
+        vschema = vvs.DefaultSchema()
+        vehicles = instance.vehicles.all()
+        json["vehicles"] = vschema.dump(vehicles, many=True)
         return Response(json)
 
     def list(self, request):
