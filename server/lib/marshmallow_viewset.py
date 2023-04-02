@@ -23,6 +23,26 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return Response({"message": f"Deserialization error: {e}"})
         return root_dict
 
+    def get_nested_schemas(self, schema):
+        subschemas = []
+        for key in schema.fields:
+            if str(schema.fields[key]) == '<fields.Nested>':
+                subschema = schema.fields[key].nested(many=True)
+                subschemas.append(subschema)
+        return subschemas
+
+    def dump_nested(self, schema, instance, json):
+        subschemas = self.get_nested_schemas(schema)
+        for subschema in subschemas:
+            pk_key = subschema.model.__name__.lower()
+            qs = instance.__getattribute__(f"{pk_key}_set").all()
+            sub_json = subschema.dump(qs)
+            idx = 0
+            for subinstance in qs:
+                self.dump_nested(subschema, subinstance, sub_json[idx])
+                idx += 1
+            json[pk_key] = sub_json
+
     def retrieve(self, request, args, kwargs):
         """TBD
 
@@ -32,38 +52,8 @@ class MarshmallowViewSet(viewsets.ViewSet):
         from pprint import pprint as pp
         schema = self.schemas.retrieve
         instance = schema.model.objects.get(pk=kwargs["pk"])
-        # import pdb; pdb.set_trace();
         json = schema.dump(instance)
-        
-
-        # check for nested fields
-        for key in schema.fields:
-            if str(schema.fields[key]) == '<fields.Nested>':
-                subschema = schema.fields[key].nested(many=True)
-                #remove underscore character from key
-                pk_key = key.replace("_", "")
-                #remove the s from the end of the key to get the pk key
-                pk_key = pk_key[:-1]
-
-                #special case for furnitureitem can be fixed later
-                if pk_key == "furnitureitem":
-                    pk_key = "furniture"
-                # import pdb; pdb.set_trace();
-                qs = instance.__getattribute__(f"{pk_key}_set").all()
-                json[key] = subschema.dump(qs)
-
-                idx = 0
-                for subinstance in qs:
-                    for field in subschema.fields:
-                        if str(subschema.fields[field]) == '<fields.Nested>':
-                            subschema2 = subschema.fields[field].nested(many=True)
-                            pk_key2 = field.replace("_", "")
-                            pk_key2 = pk_key2[:-1]
-                            qs2 = subinstance.__getattribute__(f"{pk_key2}_set").all()
-                            json[key][idx][field] = subschema2.dump(qs2)
-                            idx += 1
-
-
+        self.dump_nested(schema, instance, json)
         return Response(json)
 
     def list(self, request):

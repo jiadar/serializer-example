@@ -126,7 +126,7 @@ class PropertyViewSet(MarshmallowViewSet):
         description = fields.String()
         rent = fields.Number()
         inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
-        furniture_items = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
+        furnitures = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
         # vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
 
     schemas = SchemaContainer(

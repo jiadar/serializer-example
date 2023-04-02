@@ -11,7 +11,7 @@ Accept: application/json;charset=utf-8
     "zip":70115,
     "description":"fabulous",
     "rent":1000.50,
-    "furniture_items":[
+    "furnitures":[
         {
             "furniture_id":"53cd8f8f-0bed-414d-b29f-e99d41489b1c",
             "description":"Sofa",
