@@ -3,7 +3,7 @@ from marshmallow.exceptions import \
 from rest_framework import viewsets
 from rest_framework.response import Response
 from lib.node import Node
-
+from django.db.models.fields.related_descriptors import (ManyToManyDescriptor)
 
 class MarshmallowViewSet(viewsets.ViewSet):
     """
@@ -43,6 +43,20 @@ class MarshmallowViewSet(viewsets.ViewSet):
                 idx += 1
             json[pk_key] = sub_json
 
+    def dump_many_to_many(self, schema, instance, json):
+        for key in schema.fields:
+            try:
+                if str(type(instance.__getattribute__(key))) == "<class 'django.db.models.fields.related_descriptors.create_forward_many_to_many_manager.<locals>.ManyRelatedManager'>":
+                    subschema = schema.fields[key].nested(many=True)
+                    #remove trailing 's' from key
+                    pk_key = key[:-1]
+                    subinstances = instance.__getattribute__(key).all()
+                    sub_json = subschema.dump(subinstances)
+                    json[pk_key] = sub_json
+            except:
+                pass
+
+
     def retrieve(self, request, args, kwargs):
         """TBD
 
@@ -52,14 +66,17 @@ class MarshmallowViewSet(viewsets.ViewSet):
         from pprint import pprint as pp
         schema = self.schemas.retrieve
         instance = schema.model.objects.get(pk=kwargs["pk"])
+
         json = schema.dump(instance)
         self.dump_nested(schema, instance, json)
+        # import pdb; pdb.set_trace();
+        self.dump_many_to_many(self.schemas.create, instance, json)
 
         #hard coded vehicles for now
-        from propertymanager.views import VehicleViewSet as vvs
-        vschema = vvs.DefaultSchema()
-        vehicles = instance.vehicles.all()
-        json["vehicles"] = vschema.dump(vehicles, many=True)
+        # from propertymanager.views import VehicleViewSet as vvs
+        # vschema = vvs.DefaultSchema()
+        # vehicles = instance.vehicles.all()
+        # json["vehicles"] = vschema.dump(vehicles, many=True)
         return Response(json)
 
     def list(self, request):

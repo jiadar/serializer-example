@@ -127,12 +127,24 @@ class PropertyViewSet(MarshmallowViewSet):
         rent = fields.Number()
         inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
         furnitures = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
-        # vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
+        vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
+
+    class RetrieveSchema(schema_cls):
+        property_id = fields.UUID()
+        owner_id = fields.UUID()
+        address = fields.String()
+        city = fields.String()
+        state = fields.String()
+        zip = fields.Number()
+        description = fields.String()
+        rent = fields.Number()
+        inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
+        furnitures = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
 
     schemas = SchemaContainer(
         DefaultSchema,
         create=NestedSchema,
-        retrieve=NestedSchema,
+        retrieve=RetrieveSchema,
     )
 
     def retrieve(self, request, *args, **kwargs):
