@@ -69,10 +69,9 @@ class MarshmallowViewSet(viewsets.ViewSet):
         json = schema.dump(instance)
         node = DNode(schema, instance,json=json).create_tree()
 
-        # import pdb; pdb.set_trace();
-        
-        # self.dump_nested(schema, instance, json)
-        # self.dump_many_to_many(self.schemas.create, instance, json)
+        #need to pass in the keys to the many to many fields
+        # and the nested schema with the many to many fields
+        node.create_many_to_many(keys=['vehicles'], schema=self.schemas.create)
         return Response(node.json)
 
     def list(self, request):

@@ -34,3 +34,21 @@ class DNode:
         for child in self.children:
             child.create_tree()
         return self
+
+    def create_many_to_many(self, schema=None, keys=None):
+        if keys is not None and schema is not None:
+            for key in keys:
+                try:
+                    if str(type(self.obj.__getattribute__(key))) == "<class 'django.db.models.fields.related_descriptors.create_forward_many_to_many_manager.<locals>.ManyRelatedManager'>":
+
+                        subschema = schema.fields[key].nested(many=True)
+                        #remove trailing 's' from key
+                        pk_key = key[:-1]
+                        subinstances = self.obj.__getattribute__(key).all()
+                        sub_json = subschema.dump(subinstances)
+                        self.json[pk_key] = sub_json
+                except:
+                    pass
+            for child in self.children:
+                child.create_many_to_many()
+            return self
