@@ -3,7 +3,7 @@ from marshmallow.exceptions import \
 from rest_framework import viewsets
 from rest_framework.response import Response
 from lib.node import Node
-from django.db.models.fields.related_descriptors import (ManyToManyDescriptor)
+from lib.drfnode import DNode
 
 class MarshmallowViewSet(viewsets.ViewSet):
     """
@@ -66,18 +66,14 @@ class MarshmallowViewSet(viewsets.ViewSet):
         from pprint import pprint as pp
         schema = self.schemas.retrieve
         instance = schema.model.objects.get(pk=kwargs["pk"])
-
         json = schema.dump(instance)
-        self.dump_nested(schema, instance, json)
-        # import pdb; pdb.set_trace();
-        self.dump_many_to_many(self.schemas.create, instance, json)
+        node = DNode(schema, instance,json=json).create_tree()
 
-        #hard coded vehicles for now
-        # from propertymanager.views import VehicleViewSet as vvs
-        # vschema = vvs.DefaultSchema()
-        # vehicles = instance.vehicles.all()
-        # json["vehicles"] = vschema.dump(vehicles, many=True)
-        return Response(json)
+        # import pdb; pdb.set_trace();
+        
+        # self.dump_nested(schema, instance, json)
+        # self.dump_many_to_many(self.schemas.create, instance, json)
+        return Response(node.json)
 
     def list(self, request):
         """TBD
