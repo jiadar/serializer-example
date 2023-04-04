@@ -2,9 +2,8 @@ from marshmallow.exceptions import \
     ValidationError as MarshmallowValidationError
 from rest_framework import viewsets
 from rest_framework.response import Response
-
 from lib.node import Node
-
+from lib.drfnode import DNode
 
 class MarshmallowViewSet(viewsets.ViewSet):
     """
@@ -24,13 +23,56 @@ class MarshmallowViewSet(viewsets.ViewSet):
             return Response({"message": f"Deserialization error: {e}"})
         return root_dict
 
-    def retreive(self, request):
+    def get_nested_schemas(self, schema):
+        subschemas = []
+        for key in schema.fields:
+            if str(schema.fields[key]) == '<fields.Nested>':
+                subschema = schema.fields[key].nested(many=True)
+                subschemas.append(subschema)
+        return subschemas
+
+    def dump_nested(self, schema, instance, json):
+        subschemas = self.get_nested_schemas(schema)
+        for subschema in subschemas:
+            pk_key = subschema.model.__name__.lower()
+            qs = instance.__getattribute__(f"{pk_key}_set").all()
+            sub_json = subschema.dump(qs)
+            idx = 0
+            for subinstance in qs:
+                self.dump_nested(subschema, subinstance, sub_json[idx])
+                idx += 1
+            json[pk_key] = sub_json
+
+    def dump_many_to_many(self, schema, instance, json):
+        for key in schema.fields:
+            try:
+                if str(type(instance.__getattribute__(key))) == "<class 'django.db.models.fields.related_descriptors.create_forward_many_to_many_manager.<locals>.ManyRelatedManager'>":
+                    subschema = schema.fields[key].nested(many=True)
+                    #remove trailing 's' from key
+                    pk_key = key[:-1]
+                    subinstances = instance.__getattribute__(key).all()
+                    sub_json = subschema.dump(subinstances)
+                    json[pk_key] = sub_json
+            except:
+                pass
+
+
+    def retrieve(self, request, args, kwargs):
         """TBD
 
         This should work similarly to create, where we will recursively trace the 'list' schema
         and build up the return data by generating querysets for the root and nested data.
         """
-        pass
+        from pprint import pprint as pp
+        schema = self.schemas.retrieve
+        instance = schema.model.objects.get(pk=kwargs["pk"])
+        json = schema.dump(instance)
+        node = DNode(schema, instance,json=json).create_tree()
+
+        #need to pass in the keys to the many to many fields
+        # and the nested schema with the many to many fields
+        node.create_many_to_many(keys=['vehicles'], schema=self.schemas.create)
+        return Response(node.json)
 
     def list(self, request):
         """TBD
@@ -42,4 +84,4 @@ class MarshmallowViewSet(viewsets.ViewSet):
     def create(self, request):
         root_dict = self.validate(request.data)
         Node.create_tree(Node(self.schemas.create, root_dict)).commit()
-        return Response({"message": "accepted"})
+        return Response(root_dict)

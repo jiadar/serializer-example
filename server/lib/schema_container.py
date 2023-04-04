@@ -20,7 +20,6 @@ class SchemaContainer:
         """
         self.default = default
         for view in [
-            "list",
             "create",
             "retrieve",
             "update",
@@ -33,3 +32,10 @@ class SchemaContainer:
                 f"{instance.model().__class__.__name__}{instance.__class__.__name__}"
             )
             self.__setattr__(view, instance)
+
+        sch_cls = self._gen_schema("retrieve", kwargs)
+        instance = sch_cls(many=True)
+        instance.__class__.__name__ = (
+            f"{instance.model().__class__.__name__}{instance.__class__.__name__}"
+        )
+        self.__setattr__("list", instance)

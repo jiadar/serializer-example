@@ -33,8 +33,9 @@ class FurnitureViewSet(MarshmallowViewSet):
         inservice_date = fields.Date()
         expected_life = fields.Number()
 
-    schemas = SchemaContainer(DefaultSchema)
-
+    schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 class VehicleViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Vehicle)
@@ -47,8 +48,9 @@ class VehicleViewSet(MarshmallowViewSet):
         description = fields.String()
         last_maintenance = fields.Date()
 
-    schemas = SchemaContainer(DefaultSchema)
-
+    schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 class DetailViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Detail)
@@ -57,7 +59,10 @@ class DetailViewSet(MarshmallowViewSet):
         detail_id = fields.UUID()
         description = fields.String()
 
-    schemas = SchemaContainer(DefaultSchema)
+    schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
+
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 
 class InspectionItemViewSet(MarshmallowViewSet):
@@ -68,8 +73,9 @@ class InspectionItemViewSet(MarshmallowViewSet):
         description = fields.String()
         details = fields.Nested(DetailViewSet.DefaultSchema, many=True)
 
-    schemas = SchemaContainer(DefaultSchema)
-
+    schemas = SchemaContainer(DefaultSchema, retrieve=DefaultSchema)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 class InspectionViewSet(MarshmallowViewSet):
     schema_cls = magic.create_schema_cls(Inspection)
@@ -90,7 +96,11 @@ class InspectionViewSet(MarshmallowViewSet):
     schemas = SchemaContainer(
         DefaultSchema,
         create=CreateSchema,
+        retrieve=CreateSchema,
     )
+
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
 
 
 class PropertyViewSet(MarshmallowViewSet):
@@ -106,7 +116,7 @@ class PropertyViewSet(MarshmallowViewSet):
         description = fields.String()
         rent = fields.Number()
 
-    class CreateSchema(schema_cls):
+    class NestedSchema(schema_cls):
         property_id = fields.UUID()
         owner_id = fields.UUID()
         address = fields.String()
@@ -116,10 +126,26 @@ class PropertyViewSet(MarshmallowViewSet):
         description = fields.String()
         rent = fields.Number()
         inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
-        furniture_items = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
+        furnitures = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
         vehicles = fields.Nested(VehicleViewSet.DefaultSchema, many=True)
+
+    class RetrieveSchema(schema_cls):
+        property_id = fields.UUID()
+        owner_id = fields.UUID()
+        address = fields.String()
+        city = fields.String()
+        state = fields.String()
+        zip = fields.Number()
+        description = fields.String()
+        rent = fields.Number()
+        inspections = fields.Nested(InspectionViewSet.CreateSchema, many=True)
+        furnitures = fields.Nested(FurnitureViewSet.DefaultSchema, many=True)
 
     schemas = SchemaContainer(
         DefaultSchema,
-        create=CreateSchema,
+        create=NestedSchema,
+        retrieve=RetrieveSchema,
     )
+
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
